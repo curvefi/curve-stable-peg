@@ -1,9 +1,8 @@
 import brownie
-from brownie import ZERO_ADDRESS, chain
+from brownie import ZERO_ADDRESS
 
 
 def test_parameters(peg_keeper, pool, pegged, receiver, admin):
-    print(chain.height)
     assert peg_keeper.pegged() == pegged
     assert peg_keeper.pool() == pool
 

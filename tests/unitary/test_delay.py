@@ -4,7 +4,7 @@ from brownie import chain
 def test_update_delay(peg_keeper, admin, pool, peg, alice):
     action_delay = peg_keeper.action_delay()
     if action_delay:
-        amount = peg.balanceOf(alice) // 2
+        amount = peg.balanceOf(alice)
         assert amount > 0, "Give some coins to alice"
 
         peg.approve(pool, amount, {"from": alice})
@@ -19,7 +19,7 @@ def test_update_delay(peg_keeper, admin, pool, peg, alice):
 def test_update_no_delay(peg_keeper, admin, pool, peg, alice):
     action_delay = peg_keeper.action_delay()
     if action_delay:
-        amount = peg.balanceOf(alice) // 2
+        amount = peg.balanceOf(alice)
         assert amount > 0, "Give some coins to alice"
 
         peg.approve(pool, amount, {"from": alice})
@@ -29,3 +29,19 @@ def test_update_no_delay(peg_keeper, admin, pool, peg, alice):
         chain.sleep(action_delay - 1)
 
         assert not peg_keeper.update({"from": admin})
+
+
+def test_provide_delay():
+    pass
+
+
+def test_provide_no_delay():
+    pass
+
+
+def test_withdraw_delay():
+    pass
+
+
+def test_withdraw_no_delay():
+    pass
