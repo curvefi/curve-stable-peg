@@ -77,6 +77,6 @@ def pool(CurvePool, peg, pegged, pool_token, owner, alice):
 
 @pytest.fixture(scope="module")
 def peg_keeper(PegKeeper, pool, receiver, admin, pegged, owner):
-    contract = PegKeeper.deploy(pool, 0, receiver, {"from": admin})
+    contract = PegKeeper.deploy(pool, 10, receiver, {"from": admin})
     pegged.add_minter(contract, {"from": owner})
     yield contract

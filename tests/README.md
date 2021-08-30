@@ -1,5 +1,5 @@
 ## Tests roadmap
-1.Test `PegKeeper` with default `CurvePool`(from `contracts/testing`)
+1. Test `PegKeeper` with default `CurvePool`(from `contracts/testing`)
 - Access to all methods
 - Actions delay of mint/burn
 - First `add_liquidity`, `remove_liquidity`, `exchange`
