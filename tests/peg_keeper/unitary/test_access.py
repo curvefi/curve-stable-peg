@@ -2,9 +2,9 @@ import brownie
 from brownie import ZERO_ADDRESS
 
 
-def test_parameters(peg_keeper, pool, pegged, receiver, admin):
+def test_parameters(peg_keeper, swap, pegged, receiver, admin):
     assert peg_keeper.pegged() == pegged
-    assert peg_keeper.pool() == pool
+    assert peg_keeper.pool() == swap
 
     assert peg_keeper.admin() == admin
     assert peg_keeper.receiver() == receiver
@@ -13,9 +13,9 @@ def test_parameters(peg_keeper, pool, pegged, receiver, admin):
     assert peg_keeper.future_receiver() == ZERO_ADDRESS
 
 
-def test_update_access(peg_keeper, alice):
+def test_update_access(peg_keeper, bob):
     # Available for anyone
-    peg_keeper.update({"from": alice})
+    peg_keeper.update({"from": bob})
 
 
 def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
