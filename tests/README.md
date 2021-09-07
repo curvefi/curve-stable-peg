@@ -2,7 +2,7 @@
 1. Test `PegKeeper` with default `CurvePool`(from `contracts/testing`)
 - Access to all methods
 - Actions delay of mint/burn
-- First `add_liquidity`, `remove_liquidity`, `exchange`
+- First provide and withdraw
 - Minimum LP and coin values to mint and add
 - Stress test with hypothesis
 
