@@ -127,28 +127,22 @@ def test_number_always_go_up(
     swap,
     alice,
     bob,
-    underlying_coins,
-    wrapped_coins,
-    wrapped_decimals,
+    coins,
+    decimals,
     base_amount,
     set_fees,
 ):
     set_fees(10 ** 7, 0)
 
-    for underlying, wrapped in zip(underlying_coins, wrapped_coins):
+    for coin in coins:
         amount = 10 ** 18 * base_amount
-        if underlying == ETH_ADDRESS:
-            bob.transfer(alice, amount)
-        else:
-            underlying._mint_for_testing(alice, amount, {"from": alice})
-        if underlying != wrapped:
-            wrapped._mint_for_testing(alice, amount, {"from": alice})
+        coin._mint_for_testing(alice, amount, {"from": alice})
 
     state_machine(
         StateMachine,
         alice,
         swap,
-        wrapped_coins,
-        wrapped_decimals,
+        coins,
+        decimals,
         settings={"max_examples": 25, "stateful_step_count": 50},
     )

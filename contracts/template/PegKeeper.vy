@@ -1,17 +1,17 @@
 # (c) Curve.Fi, 2021
-# StablePeg
+# Peg Keeper
 # @version 0.2.15
 
 
 interface CurvePool:
-    def add_liquidity(amounts: uint256[2], min_mint_amount: uint256): nonpayable
+    def peg_keeper_add(_amount: uint256) -> uint256: nonpayable
     def balances(i_coin: uint256) -> uint256: view
     def calc_token_amount(amounts: uint256[2], deposit: bool) -> uint256: view
     def calc_withdraw_one_coin(_token_amount: uint256, i: int128) -> uint256: nonpayable
     def coins(i: uint256) -> address: view
     def lp_token() -> address: view
-    def remove_liquidity_imbalance(amounts: uint256[2], max_burn_amount: uint256): nonpayable
-    def remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: uint256) -> uint256: nonpayable
+    def peg_keeper_remove(_amount: uint256) -> uint256: nonpayable
+    def peg_keeper_remove_via_token(_token_amount: uint256) -> uint256: nonpayable
     def token() -> address: view
 
 interface PoolToken:
@@ -24,6 +24,14 @@ interface ERC20Pegged:
     def mint(_to: address, _amount: uint256): nonpayable
     def burn(_amount: uint256): nonpayable
     def balanceOf(arg0: address) -> uint256: view
+
+
+event Provide:
+    amount: uint256
+
+
+event Withdraw:
+    amount: uint256
 
 
 MIN_POOL_TOKEN_AMOUNT: constant(uint256) = 10 ** 3
@@ -65,7 +73,7 @@ def __init__(_pool: address, _action_delay: uint256, _receiver: address):
 
 @internal
 def _provide(_amount: uint256) -> bool:
-    if self.last_change + self.action_delay > block.timestamp or _amount < MIN_AMOUNT:
+    if _amount < MIN_AMOUNT:
         return False
 
     pegged: address = self.pegged
@@ -76,28 +84,17 @@ def _provide(_amount: uint256) -> bool:
     ERC20Pegged(pegged).approve(pool, _amount)
 
     # Add '_amount' of coin to the pool
-    amounts: uint256[2] = [0, _amount]
     # Can not be rugged with min_amount=0
-    CurvePool(pool).add_liquidity(amounts, 0)
+    CurvePool(pool).peg_keeper_add(_amount)
 
     self.last_change = block.timestamp
+    log Provide(_amount)
     return True
-
-
-@external
-def provide(_amount: uint256) -> bool:
-    """
-    @notice Mint '_amount' coins and add them to the pool
-    @param _amount Amount of coin to mint
-    @return TODO
-    """
-    assert msg.sender == self.pool
-    return self._provide(_amount)
 
 
 @internal
 def _withdraw(_amount: uint256) -> bool:
-    if self.last_change + self.action_delay > block.timestamp or _amount < MIN_AMOUNT:
+    if _amount < MIN_AMOUNT:
         return False
     pool: address = self.pool
 
@@ -106,16 +103,17 @@ def _withdraw(_amount: uint256) -> bool:
     token_amount: uint256 = CurvePool(pool).calc_token_amount(amounts, False) * 1004 / 1000
     token_balance: uint256 = PoolToken(self.pool_token).balanceOf(self)
     if token_amount <= token_balance:
-        CurvePool(pool).remove_liquidity_imbalance(amounts, token_amount)
+        CurvePool(pool).peg_keeper_remove(_amount)
+        log Withdraw(_amount)
     elif token_balance < MIN_POOL_TOKEN_AMOUNT:
         return False
-    else:
+    else:  # Remove?
         amount: uint256 = CurvePool(pool).calc_withdraw_one_coin(token_balance, 1)
         if amount < MIN_AMOUNT:
             return False
 
-        # Can not be rugged with min_amount=0
-        CurvePool(pool).remove_liquidity_one_coin(token_balance, 1, 0)
+        amount = CurvePool(pool).peg_keeper_remove_via_token(token_balance)
+        log Withdraw(amount)
 
     # Burn coins
     coin_balance: uint256 = ERC20Pegged(self.pegged).balanceOf(self)
@@ -126,23 +124,14 @@ def _withdraw(_amount: uint256) -> bool:
 
 
 @external
-def withdraw(_amount: uint256) -> bool:
-    """
-    @notice Withdraw '_amount' coins and burn
-    @dev In case of low LP balance, less or none tokens could be removed
-    @param _amount Amount of coin to burn
-    @return TODO
-    """
-    assert msg.sender == self.pool
-    return self._withdraw(_amount)
-
-
-@external
 def update() -> bool:
     """
     @notice Mint or burn coins from the pool to stabilize it
-    @return TODO
+    @return True if peg was maintained, otherwise False
     """
+    if self.last_change + self.action_delay > block.timestamp:
+        return False
+
     pool: address = self.pool
     balance_peg: uint256 = CurvePool(pool).balances(0)
     balance_pegged: uint256 = CurvePool(pool).balances(1)

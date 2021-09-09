@@ -17,8 +17,7 @@ interface CurveToken:
 
 
 interface PegKeeper:
-    def provide(_amount: uint256) -> bool: nonpayable
-    def withdraw(_amount: uint256) -> bool: nonpayable
+    def update() -> bool: nonpayable
 
 
 # Events
@@ -266,13 +265,7 @@ def _get_D_mem(_balances: uint256[N_COINS], _amp: uint256) -> uint256:
 @internal
 def _peg():
     if self.peg_keeper != ZERO_ADDRESS:
-        # PegKeeper(self.peg_keeper).update()
-        x: uint256 = self.balances[0]
-        y: uint256 = self.balances[1]
-        if x > y:
-            PegKeeper(self.peg_keeper).provide((x - y) / 5)
-        else:
-            PegKeeper(self.peg_keeper).withdraw((y - x) / 5)
+        PegKeeper(self.peg_keeper).update()
 
 
 @view
@@ -319,9 +312,8 @@ def calc_token_amount(_amounts: uint256[N_COINS], _is_deposit: bool) -> uint256:
     return diff * token_amount / D0
 
 
-@external
-@nonreentrant('lock')
-def add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256) -> uint256:
+@internal
+def _add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256, sender: address) -> uint256:
     """
     @notice Deposit coins into the pool
     @param _amounts List of amounts of coins to deposit
@@ -384,7 +376,7 @@ def add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256) -> uint
                 self.coins[i],
                 concat(
                     method_id("transferFrom(address,address,uint256)"),
-                    convert(msg.sender, bytes32),
+                    convert(sender, bytes32),
                     convert(self, bytes32),
                     convert(_amounts[i], bytes32),
                 ),
@@ -395,13 +387,27 @@ def add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256) -> uint
             # end "safeTransferFrom"
 
     # Mint pool tokens
-    CurveToken(lp_token).mint(msg.sender, mint_amount)
+    CurveToken(lp_token).mint(sender, mint_amount)
 
-    log AddLiquidity(msg.sender, _amounts, fees, D1, token_supply + mint_amount)
+    log AddLiquidity(sender, _amounts, fees, D1, token_supply + mint_amount)
 
-    self._peg()
+    if sender != self.peg_keeper:
+        self._peg()
 
     return mint_amount
+
+
+@external
+@nonreentrant('lock')
+def add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256) -> uint256:
+    return self._add_liquidity(_amounts, _min_mint_amount, msg.sender)
+
+
+@external
+@nonreentrant('peg-keeper')
+def peg_keeper_add(_amount: uint256) -> uint256:
+    assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
+    return self._add_liquidity([0, _amount], 0, msg.sender)
 
 
 @view
@@ -581,9 +587,8 @@ def remove_liquidity(_amount: uint256, _min_amounts: uint256[N_COINS]) -> uint25
     return amounts
 
 
-@external
-@nonreentrant('lock')
-def remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uint256) -> uint256:
+@internal
+def _remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uint256, sender: address) -> uint256:
     """
     @notice Withdraw coins from the pool in an imbalanced amount
     @param _amounts List of amounts of underlying coins to withdraw
@@ -623,14 +628,14 @@ def remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uin
     token_amount += 1  # In case of rounding errors - make it unfavorable for the "attacker"
     assert token_amount <= _max_burn_amount, "Slippage screwed you"
 
-    CurveToken(lp_token).burnFrom(msg.sender, token_amount)  # dev: insufficient funds
+    CurveToken(lp_token).burnFrom(sender, token_amount)  # dev: insufficient funds
     for i in range(N_COINS):
         if _amounts[i] != 0:
             _response: Bytes[32] = raw_call(
                 self.coins[i],
                 concat(
                     method_id("transfer(address,uint256)"),
-                    convert(msg.sender, bytes32),
+                    convert(sender, bytes32),
                     convert(_amounts[i], bytes32),
                 ),
                 max_outsize=32,
@@ -638,11 +643,25 @@ def remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uin
             if len(_response) > 0:
                 assert convert(_response, bool)
 
-    log RemoveLiquidityImbalance(msg.sender, _amounts, fees, D1, token_supply - token_amount)
+    log RemoveLiquidityImbalance(sender, _amounts, fees, D1, token_supply - token_amount)
 
-    self._peg()
+    if sender != self.peg_keeper:
+        self._peg()
 
     return token_amount
+
+
+@external
+@nonreentrant('lock')
+def remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uint256) -> uint256:
+    return self._remove_liquidity_imbalance(_amounts, _max_burn_amount, msg.sender)
+
+
+@external
+@nonreentrant('peg-keeper')
+def peg_keeper_remove(_amount: uint256) -> uint256:
+    assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
+    return self._remove_liquidity_imbalance([0, _amount], MAX_UINT256, msg.sender)
 
 
 @pure
@@ -735,9 +754,8 @@ def calc_withdraw_one_coin(_token_amount: uint256, i: int128) -> uint256:
     return self._calc_withdraw_one_coin(_token_amount, i)[0]
 
 
-@external
-@nonreentrant('lock')
-def remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: uint256) -> uint256:
+@internal
+def _remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: uint256, sender: address) -> uint256:
     """
     @notice Withdraw a single coin from the pool
     @param _token_amount Amount of LP tokens to burn in the withdrawal
@@ -754,13 +772,13 @@ def remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: ui
     assert dy >= _min_amount, "Not enough coins removed"
 
     self.balances[i] -= (dy + dy_fee * self.admin_fee / FEE_DENOMINATOR)
-    CurveToken(self.lp_token).burnFrom(msg.sender, _token_amount)  # dev: insufficient funds
+    CurveToken(self.lp_token).burnFrom(sender, _token_amount)  # dev: insufficient funds
 
     _response: Bytes[32] = raw_call(
         self.coins[i],
         concat(
             method_id("transfer(address,uint256)"),
-            convert(msg.sender, bytes32),
+            convert(sender, bytes32),
             convert(dy, bytes32),
         ),
         max_outsize=32,
@@ -768,11 +786,26 @@ def remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: ui
     if len(_response) > 0:
         assert convert(_response, bool)
 
-    log RemoveLiquidityOne(msg.sender, _token_amount, dy, total_supply - _token_amount)
+    log RemoveLiquidityOne(sender, _token_amount, dy, total_supply - _token_amount)
 
-    self._peg()
+    if sender != self.peg_keeper:
+        self._peg()
 
     return dy
+
+
+@external
+@nonreentrant('lock')
+def remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: uint256) -> uint256:
+    return self._remove_liquidity_one_coin(_token_amount, i, _min_amount, msg.sender)
+
+
+@external
+@nonreentrant('peg-keeper')
+def peg_keeper_remove_via_token(_token_amount: uint256) -> uint256:
+    assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
+    # Can not be rugged with min_amount=0
+    return self._remove_liquidity_one_coin(_token_amount, 1, 0, msg.sender)
 
 
 ### Admin functions ###
