@@ -129,6 +129,7 @@ def update() -> bool:
     @notice Mint or burn coins from the pool to stabilize it
     @return True if peg was maintained, otherwise False
     """
+    assert msg.sender == self.pool, "Callable by the pool"
     if self.last_change + self.action_delay > block.timestamp:
         return False
 

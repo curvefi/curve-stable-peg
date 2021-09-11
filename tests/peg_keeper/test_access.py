@@ -13,9 +13,13 @@ def test_parameters(peg_keeper, swap, pegged, receiver, admin):
     assert peg_keeper.future_receiver() == ZERO_ADDRESS
 
 
-def test_update_access(peg_keeper, bob):
-    # Available for anyone
-    peg_keeper.update({"from": bob})
+def test_access(peg_keeper, swap):
+    peg_keeper.update({"from": swap})
+
+
+def test_update_no_access(peg_keeper, bob):
+    with brownie.reverts():
+        peg_keeper.update({"from": bob})
 
 
 def test_commit_new_receiver(peg_keeper, admin, alice, receiver):

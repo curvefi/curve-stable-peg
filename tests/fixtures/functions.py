@@ -89,20 +89,16 @@ def provide_token_to_peg_keeper(swap, peg, pegged, alice, pool_token, peg_keeper
 @pytest.fixture(scope="module")
 def balance_change_after_provide(swap, peg, pegged):
     def _inner(diff: int):
-        assert int(peg.balanceOf(swap)) == pytest.approx(pegged.balanceOf(swap) + (diff - diff // 5))
-        assert int(swap.balances(0)) == pytest.approx(
-            swap.balances(1) + (diff - diff // 5),
-            abs=diff * swap.fee() / 10 ** 10,
-        )
+        # diff should be positive
+        assert swap.balances(0) == swap.balances(1) + (diff - diff // 5)
+        assert peg.balanceOf(swap) == pegged.balanceOf(swap) + (diff - diff // 5)
     return _inner
 
 
 @pytest.fixture(scope="module")
 def balance_change_after_withdraw(swap, peg, pegged):
     def _inner(diff: int):
-        assert int(peg.balanceOf(swap)) == pytest.approx(pegged.balanceOf(swap) - (diff - diff // 5))
-        assert int(swap.balances(0)) == pytest.approx(
-            swap.balances(1) - (diff - diff // 5),
-            abs=diff * swap.fee() / 10 ** 10,
-        )
+        # diff should be positive
+        assert swap.balances(0) == swap.balances(1) - (diff - diff // 5)
+        assert peg.balanceOf(swap) == pegged.balanceOf(swap) - (diff - diff // 5)
     return _inner
