@@ -11,7 +11,7 @@ pytestmark = pytest.mark.usefixtures(
 )
 
 
-@given(amount=strategy("uint256", min_value=10 ** 18, max_value=10 ** 20))
+@given(amount=strategy("uint256", min_value=10 ** 20, max_value=10 ** 24))
 def test_withdraw(swap, peg, pegged, alice, amount, peg_keeper):
     swap.add_liquidity([0, amount], 0, {"from": alice})
     balances = [swap.balances(0), swap.balances(1)]

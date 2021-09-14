@@ -21,9 +21,3 @@ def bob(accounts):
 @pytest.fixture(scope="session")
 def charlie(accounts):
     yield accounts[4]
-
-
-@pytest.fixture(scope="session")
-def receiver(accounts):
-    """ Peg Keeper profit receiver """
-    yield accounts[5]

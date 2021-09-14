@@ -1,5 +1,5 @@
 # (c) Curve.Fi, 2021
-# Peg Keeper
+# Peg Keeper for pool with equal decimals of coins
 # @version 0.2.15
 
 
@@ -34,48 +34,43 @@ event Withdraw:
     amount: uint256
 
 
-MIN_POOL_TOKEN_AMOUNT: constant(uint256) = 10 ** 3
-MIN_AMOUNT: constant(uint256) = 10 ** 6
+# Time between minting/burning coins
+ACTION_DELAY: constant(uint256) = 15 * 60
+
+# Minimum value to withdraw, if can't withdraw full amount
+MIN_POOL_TOKEN_AMOUNT: constant(uint256) = 10 ** 18
+
+PRECISION: constant(uint256) = 10 ** 10
+min_asymmetry: public(uint256)
 
 
-# Assume decimals of peg and pegged are equal
 pegged: public(address)
 pool: public(address)
 pool_token: address
 
-action_delay: public(uint256)
 last_change: public(uint256)
 
 admin: public(address)
-receiver: public(address)  # receiver of profit
-
 future_admin: public(address)
-future_receiver: public(address)
 
 
 @external
-def __init__(_pool: address, _action_delay: uint256, _receiver: address):
+def __init__(_pool: address, _min_asymmetry: uint256):
     """
     @notice Contract constructor
     @param _pool Contract pool address
-    @param _action_delay Time between minting/burning coins
-    @param _receiver Address of profit receiver
     """
     self.pool = _pool
     self.pool_token = CurvePool(_pool).lp_token()
     self.pegged = CurvePool(_pool).coins(1)
-    
-    self.action_delay = _action_delay
 
     self.admin = msg.sender
-    self.receiver = _receiver
+
+    self.min_asymmetry = _min_asymmetry
 
 
 @internal
 def _provide(_amount: uint256) -> bool:
-    if _amount < MIN_AMOUNT:
-        return False
-
     pegged: address = self.pegged
     pool: address = self.pool
 
@@ -84,7 +79,6 @@ def _provide(_amount: uint256) -> bool:
     ERC20Pegged(pegged).approve(pool, _amount)
 
     # Add '_amount' of coin to the pool
-    # Can not be rugged with min_amount=0
     CurvePool(pool).peg_keeper_add(_amount)
 
     self.last_change = block.timestamp
@@ -94,8 +88,6 @@ def _provide(_amount: uint256) -> bool:
 
 @internal
 def _withdraw(_amount: uint256) -> bool:
-    if _amount < MIN_AMOUNT:
-        return False
     pool: address = self.pool
 
     # Remove coins from the pool
@@ -107,12 +99,8 @@ def _withdraw(_amount: uint256) -> bool:
         log Withdraw(_amount)
     elif token_balance < MIN_POOL_TOKEN_AMOUNT:
         return False
-    else:  # Remove?
-        amount: uint256 = CurvePool(pool).calc_withdraw_one_coin(token_balance, 1)
-        if amount < MIN_AMOUNT:
-            return False
-
-        amount = CurvePool(pool).peg_keeper_remove_via_token(token_balance)
+    else:
+        amount: uint256 = CurvePool(pool).peg_keeper_remove_via_token(token_balance)
         log Withdraw(amount)
 
     # Burn coins
@@ -123,6 +111,11 @@ def _withdraw(_amount: uint256) -> bool:
     return True
 
 
+@internal
+def _is_balanced(x: uint256, y: uint256) -> bool:
+    return PRECISION - 4 * PRECISION * x * y / (x + y) ** 2 < self.min_asymmetry
+
+
 @external
 def update() -> bool:
     """
@@ -130,23 +123,20 @@ def update() -> bool:
     @return True if peg was maintained, otherwise False
     """
     assert msg.sender == self.pool, "Callable by the pool"
-    if self.last_change + self.action_delay > block.timestamp:
+    if self.last_change + ACTION_DELAY > block.timestamp:
         return False
 
     pool: address = self.pool
     balance_peg: uint256 = CurvePool(pool).balances(0)
     balance_pegged: uint256 = CurvePool(pool).balances(1)
 
+    if self._is_balanced(balance_peg, balance_pegged):
+        return False
+
     if balance_peg > balance_pegged:
         return self._provide((balance_peg - balance_pegged) / 5)
     else:
-        # balance_peg == balance_pegged will return False due to 0 < MIN_AMOUNT
         return self._withdraw((balance_pegged - balance_peg) / 5)
-
-
-# @external
-# def profit():
-#     # Count minted vs withdrawable?
 
 
 @external
@@ -170,19 +160,12 @@ def apply_new_admin():
 
 
 @external
-def commit_new_receiver(_new_receiver: address):
+def set_new_min_asymmetry(_new_min_asymmetry: uint256):
     """
-    @notice Commit new receiver of profit
-    @param _new_receiver Address of the new receiver
-    """
-    assert msg.sender == self.admin, "Access denied."
-    self.future_receiver = _new_receiver
-
-
-@external
-def apply_new_receiver():
-    """
-    @notice Apply new receiver of profit
+    @notice Commit new min_asymmetry of pool
+    @param _new_min_asymmetry Min asymmetry with PRECISION
     """
     assert msg.sender == self.admin, "Access denied."
-    self.receiver = self.future_receiver
+    assert 1 < _new_min_asymmetry, "Bad asymmetry value."
+    assert _new_min_asymmetry < PRECISION, "Bad asymmetry value."
+    self.min_asymmetry = _new_min_asymmetry
