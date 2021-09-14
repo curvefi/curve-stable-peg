@@ -148,6 +148,7 @@ def test_number_always_go_up(
     for coin in coins:
         amount = 10 ** 18 * base_amount
         coin._mint_for_testing(alice, amount, {"from": alice})
+        coin.approve(swap, amount, {"from": alice})
 
     state_machine(
         StateMachine,

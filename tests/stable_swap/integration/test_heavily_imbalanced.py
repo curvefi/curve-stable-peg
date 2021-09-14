@@ -13,6 +13,7 @@ def test_imbalanced_swaps(alice, bob, swap, coins, initial_amounts, n_coins, idx
         pytest.skip()
         swap.add_liquidity(amounts, 0, {"from": alice, "value": amounts[idx]})
     coins[idx]._mint_for_testing(alice, amounts[idx], {"from": alice})
+    coins[idx].approve(swap, amounts[idx], {"from": alice})
     swap.add_liquidity(amounts, 0, {"from": alice})
 
     swap_indexes = [i for i in range(n_coins) if i != idx]
