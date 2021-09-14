@@ -1,6 +1,5 @@
 import pytest
-from brownie import compile_source, ETH_ADDRESS
-
+from brownie import ETH_ADDRESS, compile_source
 
 pytestmark = pytest.mark.usefixtures("add_initial_liquidity")
 
@@ -17,7 +16,9 @@ def __init__(swap: address):
 
     virtual_price = swap.get_virtual_price()
 
-    compile_source(code, vyper_version="0.2.4").Vyper.deploy(swap, {"from": bob, "value": 123456})
+    compile_source(code, vyper_version="0.2.4").Vyper.deploy(
+        swap, {"from": bob, "value": 123456}
+    )
 
     assert swap.get_virtual_price() == virtual_price
     if ETH_ADDRESS in coins:

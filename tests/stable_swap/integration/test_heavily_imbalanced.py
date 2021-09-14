@@ -5,9 +5,7 @@ pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "mint_bob", "appro
 
 
 @pytest.mark.parametrize("idx", range(2))
-def test_imbalanced_swaps(
-    alice, bob, swap, coins, initial_amounts, n_coins, idx
-):
+def test_imbalanced_swaps(alice, bob, swap, coins, initial_amounts, n_coins, idx):
     # deposit 1,000x the initial amount in a single asset, leaving the pool ~99.9% imbalanced
     amounts = [0] * n_coins
     amounts[idx] = initial_amounts[idx] * 1000

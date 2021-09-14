@@ -68,7 +68,9 @@ class StateMachine:
         """
         amounts = [0, 0]
         token_amount = int(10 ** self.decimals[st_idx] * st_pct)
-        amounts[st_idx] = self.swap.remove_liquidity_one_coin(token_amount, st_idx, 0, {"from": self.alice}).return_value
+        amounts[st_idx] = self.swap.remove_liquidity_one_coin(
+            token_amount, st_idx, 0, {"from": self.alice}
+        ).return_value
         self._update_balances(amounts, True)
 
     def rule_remove_imbalance(self, amount_0="st_pct", amount_1="st_pct"):
@@ -79,7 +81,9 @@ class StateMachine:
             int(10 ** self.decimals[0] * amount_0),
             int(10 ** self.decimals[1] * amount_1),
         ]
-        self.swap.remove_liquidity_imbalance(amounts, 2 ** 256 - 1, {"from": self.alice})
+        self.swap.remove_liquidity_imbalance(
+            amounts, 2 ** 256 - 1, {"from": self.alice}
+        )
         self._update_balances(amounts, True)
 
     def rule_remove(self, st_pct):
@@ -87,7 +91,9 @@ class StateMachine:
         Remove liquidity from the pool.
         """
         amount = int(10 ** 18 * st_pct)
-        amounts = self.swap.remove_liquidity(amount, [0] * 2, {"from": self.alice}).return_value
+        amounts = self.swap.remove_liquidity(
+            amount, [0] * 2, {"from": self.alice}
+        ).return_value
         self._update_balances(amounts, True)
 
     def rule_exchange(self, st_idx, st_pct):
@@ -96,7 +102,9 @@ class StateMachine:
         """
         amounts = [0, 0]
         amounts[st_idx] = 10 ** self.decimals[st_idx] * st_pct
-        amounts[1 - st_idx] = -self.swap.exchange(st_idx, 1 - st_idx, amounts[st_idx], 0, {"from": self.alice}).return_value
+        amounts[1 - st_idx] = -self.swap.exchange(
+            st_idx, 1 - st_idx, amounts[st_idx], 0, {"from": self.alice}
+        ).return_value
         self._update_balances(amounts)
 
     def invariant_check_diff(self):

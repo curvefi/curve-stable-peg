@@ -1,5 +1,5 @@
 import pytest
-from brownie import chain, ETH_ADDRESS
+from brownie import ETH_ADDRESS, chain
 from brownie.test import strategy
 
 pytestmark = pytest.mark.usefixtures("add_initial_liquidity")
@@ -12,7 +12,9 @@ class StateMachine:
     """
 
     st_pct = strategy("decimal", min_value="0.5", max_value="1", places=2)
-    st_rates = strategy("decimal[8]", min_value="1.001", max_value="1.004", places=4, unique=True)
+    st_rates = strategy(
+        "decimal[8]", min_value="1.001", max_value="1.004", places=4, unique=True
+    )
 
     def __init__(cls, alice, swap, wrapped_coins, wrapped_decimals):
         cls.alice = alice
@@ -27,7 +29,10 @@ class StateMachine:
 
     def _min_max(self):
         # get index values for the coins with the smallest and largest balances in the pool
-        balances = [self.swap.balances(i) / (10 ** self.decimals[i]) for i in range(self.n_coins)]
+        balances = [
+            self.swap.balances(i) / (10 ** self.decimals[i])
+            for i in range(self.n_coins)
+        ]
         min_idx = balances.index(min(balances))
         max_idx = balances.index(max(balances))
         if min_idx == max_idx:
@@ -54,7 +59,9 @@ class StateMachine:
         """
         for rate, coin in zip(self.coins, st_rates):
             if hasattr(coin, "set_exchange_rate"):
-                coin.set_exchange_rate(int(coin.get_rate() * rate), {"from": self.alice})
+                coin.set_exchange_rate(
+                    int(coin.get_rate() * rate), {"from": self.alice}
+                )
 
     def rule_exchange(self, st_pct):
         """
@@ -76,7 +83,9 @@ class StateMachine:
         send, recv = self._min_max()
         amount = int(10 ** self.decimals[send] * st_pct)
         value = amount if self.coins[send] == ETH_ADDRESS else 0
-        self.swap.exchange_underlying(send, recv, amount, 0, {"from": self.alice, "value": value})
+        self.swap.exchange_underlying(
+            send, recv, amount, 0, {"from": self.alice, "value": value}
+        )
 
     def rule_remove_one_coin(self, st_pct):
         """
@@ -97,7 +106,9 @@ class StateMachine:
         idx = self._min_max()[1]
         amounts = [0] * self.n_coins
         amounts[idx] = 10 ** self.decimals[idx] * st_pct
-        self.swap.remove_liquidity_imbalance(amounts, 2 ** 256 - 1, {"from": self.alice})
+        self.swap.remove_liquidity_imbalance(
+            amounts, 2 ** 256 - 1, {"from": self.alice}
+        )
 
     def rule_remove(self, st_pct):
         """

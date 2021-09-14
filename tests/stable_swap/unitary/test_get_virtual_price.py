@@ -57,7 +57,9 @@ def test_remove_imbalance(
     amounts[idx] = 0
 
     virtual_price = swap.get_virtual_price()
-    swap.remove_liquidity_imbalance(amounts, n_coins * 10 ** 18 * base_amount, {"from": alice})
+    swap.remove_liquidity_imbalance(
+        amounts, n_coins * 10 ** 18 * base_amount, {"from": alice}
+    )
 
     assert swap.get_virtual_price() > virtual_price
 

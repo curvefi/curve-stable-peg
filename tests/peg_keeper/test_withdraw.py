@@ -1,7 +1,5 @@
 import pytest
-
 from brownie.test import given, strategy
-
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",

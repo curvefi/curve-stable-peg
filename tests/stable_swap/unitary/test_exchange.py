@@ -1,14 +1,16 @@
 from itertools import combinations_with_replacement
 
 import pytest
-from pytest import approx
 from brownie import ETH_ADDRESS
+from pytest import approx
 
 pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "approve_bob")
 
 
 @pytest.mark.parametrize("sending,receiving", [(0, 1), (1, 0)])
-@pytest.mark.parametrize("fee,admin_fee", combinations_with_replacement([0, 0.04, 0.1337, 0.5], 2))
+@pytest.mark.parametrize(
+    "fee,admin_fee", combinations_with_replacement([0, 0.04, 0.1337, 0.5], 2)
+)
 def test_exchange(
     bob,
     swap,
@@ -44,7 +46,9 @@ def test_exchange(
     else:
         received = coins[receiving].balanceOf(bob)
     assert (
-            1 - max(1e-4, 1 / received) - fee < received / 10 ** decimals[receiving] < 1 - fee
+        1 - max(1e-4, 1 / received) - fee
+        < received / 10 ** decimals[receiving]
+        < 1 - fee
     )
 
     expected_admin_fee = 10 ** decimals[receiving] * fee * admin_fee

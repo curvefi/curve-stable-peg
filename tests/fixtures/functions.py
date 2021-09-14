@@ -75,7 +75,9 @@ def set_fees(chain, swap, alice):
 
 
 @pytest.fixture(scope="module")
-def provide_token_to_peg_keeper(swap, peg, pegged, alice, pool_token, peg_keeper, coins, initial_amounts):
+def provide_token_to_peg_keeper(
+    swap, peg, pegged, alice, pool_token, peg_keeper, coins, initial_amounts
+):
     """ Add liquidity to the pool and split received LP tokens between alice and peg_keeper """
     for coin, amount in zip(coins, initial_amounts):
         coin._mint_for_testing(alice, amount)
@@ -92,6 +94,7 @@ def balance_change_after_provide(swap, peg, pegged):
         # diff should be positive
         assert swap.balances(0) == swap.balances(1) + (diff - diff // 5)
         assert peg.balanceOf(swap) == pegged.balanceOf(swap) + (diff - diff // 5)
+
     return _inner
 
 
@@ -101,4 +104,5 @@ def balance_change_after_withdraw(swap, peg, pegged):
         # diff should be positive
         assert swap.balances(0) == swap.balances(1) - (diff - diff // 5)
         assert peg.balanceOf(swap) == pegged.balanceOf(swap) - (diff - diff // 5)
+
     return _inner

@@ -1,8 +1,7 @@
 from pathlib import Path
-from brownie.project.main import get_loaded_projects
 
 import pytest
-
+from brownie.project.main import get_loaded_projects
 
 pytest_plugins = [
     "tests.fixtures.accounts",
@@ -12,11 +11,28 @@ pytest_plugins = [
 
 
 def pytest_addoption(parser):
-    parser.addoption("--peg-keeper", action="store_true", default=False, help="only run tests for Peg Keeper")
-    parser.addoption("--stable-swap", action="store_true", default=False, help="only run tests for Stable Swap")
-    parser.addoption("--stable-peg", action="store_true", default=False, help="only run tests for TODO")
+    parser.addoption(
+        "--peg-keeper",
+        action="store_true",
+        default=False,
+        help="only run tests for Peg Keeper",
+    )
+    parser.addoption(
+        "--stable-swap",
+        action="store_true",
+        default=False,
+        help="only run tests for Stable Swap",
+    )
+    parser.addoption(
+        "--stable-peg",
+        action="store_true",
+        default=False,
+        help="only run tests for TODO",
+    )
     parser.addoption("--unitary", action="store_true", help="only run unit tests")
-    parser.addoption("--integration", action="store_true", help="only run integration tests")
+    parser.addoption(
+        "--integration", action="store_true", help="only run integration tests"
+    )
 
 
 def pytest_configure(config):
@@ -94,9 +110,9 @@ def swap(StablePegPool, coins, pool_token, alice):
         coins,  # coins
         pool_token,  # pool token
         200 * 2,  # A
-        0. * fee_denominator,  # fee 0.0004
+        0.0 * fee_denominator,  # fee
         0.5 * fee_denominator,  # admin_fee
-        {"from": alice}
+        {"from": alice},
     )
     pool_token.set_minter(contract, {"from": alice})
 

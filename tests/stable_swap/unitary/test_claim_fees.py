@@ -14,7 +14,9 @@ def setup(alice, add_initial_liquidity, mint_bob, approve_bob, set_fees):
 def test_admin_balances(alice, bob, swap, coins, initial_amounts, sending, receiving):
     for send, recv in [(sending, receiving), (receiving, sending)]:
         value = initial_amounts[send] if coins[send] == ETH_ADDRESS else 0
-        swap.exchange(send, recv, initial_amounts[send], 0, {"from": bob, "value": value})
+        swap.exchange(
+            send, recv, initial_amounts[send], 0, {"from": bob, "value": value}
+        )
 
     for i in (sending, receiving):
         if coins[i] == ETH_ADDRESS:
@@ -36,7 +38,9 @@ def test_withdraw_one_coin(
     if coins[sending] == ETH_ADDRESS:
         value = initial_amounts[sending]
 
-    swap.exchange(sending, receiving, initial_amounts[sending], 0, {"from": bob, "value": value})
+    swap.exchange(
+        sending, receiving, initial_amounts[sending], 0, {"from": bob, "value": value}
+    )
 
     admin_balances = get_admin_balances()
 
@@ -58,7 +62,9 @@ def test_withdraw_all_coins(
 ):
     for send, recv in zip(range(n_coins), list(range(1, n_coins)) + [0]):
         value = initial_amounts[send] if coins[send] == ETH_ADDRESS else 0
-        swap.exchange(send, recv, initial_amounts[send], 0, {"from": bob, "value": value})
+        swap.exchange(
+            send, recv, initial_amounts[send], 0, {"from": bob, "value": value}
+        )
 
     admin_balances = get_admin_balances()
 

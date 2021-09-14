@@ -39,7 +39,9 @@ def test_ramp_A_value_up(chain, alice, swap):
     while chain.time() < future_time:
         chain.sleep(100000)
         chain.mine()
-        expected = int(initial_A + ((chain.time() - initial_time) / duration) * initial_A)
+        expected = int(
+            initial_A + ((chain.time() - initial_time) / duration) * initial_A
+        )
         assert 0.999 < expected / swap.A() <= 1
 
 
@@ -55,7 +57,8 @@ def test_ramp_A_value_down(chain, alice, swap):
         chain.sleep(100000)
         chain.mine()
         expected = int(
-            initial_A - ((chain.time() - initial_time) / duration) * (initial_A // 10 * 9)
+            initial_A
+            - ((chain.time() - initial_time) / duration) * (initial_A // 10 * 9)
         )
         if expected == 0:
             assert swap.A() == initial_A // 10

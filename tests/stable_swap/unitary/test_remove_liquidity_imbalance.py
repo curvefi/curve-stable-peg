@@ -21,8 +21,14 @@ def test_remove_balanced(
             assert coin.balanceOf(alice) == amounts[i]
             assert coin.balanceOf(swap) == initial_amounts[i] - amounts[i]
 
-    assert abs(pool_token.balanceOf(alice) - (n_coins * 10 ** 18 * base_amount - max_burn)) <= 1
-    assert abs(pool_token.totalSupply() - (n_coins * 10 ** 18 * base_amount - max_burn)) <= 1
+    assert (
+        abs(pool_token.balanceOf(alice) - (n_coins * 10 ** 18 * base_amount - max_burn))
+        <= 1
+    )
+    assert (
+        abs(pool_token.totalSupply() - (n_coins * 10 ** 18 * base_amount - max_burn))
+        <= 1
+    )
 
 
 @pytest.mark.parametrize("idx", range(2))
@@ -32,7 +38,9 @@ def test_remove_some(
     amounts = [i // 2 for i in initial_amounts]
     amounts[idx] = 0
 
-    swap.remove_liquidity_imbalance(amounts, n_coins * 10 ** 18 * base_amount, {"from": alice})
+    swap.remove_liquidity_imbalance(
+        amounts, n_coins * 10 ** 18 * base_amount, {"from": alice}
+    )
 
     for i, coin in enumerate(coins):
         if coin == ETH_ADDRESS:
@@ -44,7 +52,9 @@ def test_remove_some(
 
     actual_balance = pool_token.balanceOf(alice)
     actual_total_supply = pool_token.totalSupply()
-    ideal_balance = 10 ** 18 * base_amount * n_coins - 10 ** 18 * base_amount // 2 * (n_coins - 1)
+    ideal_balance = 10 ** 18 * base_amount * n_coins - 10 ** 18 * base_amount // 2 * (
+        n_coins - 1
+    )
 
     assert actual_balance == actual_total_supply
     assert ideal_balance * 0.99 < actual_balance < ideal_balance
@@ -57,7 +67,9 @@ def test_remove_one(
     amounts = [0] * n_coins
     amounts[idx] = initial_amounts[idx] // 2
 
-    swap.remove_liquidity_imbalance(amounts, n_coins * 10 ** 18 * base_amount, {"from": alice})
+    swap.remove_liquidity_imbalance(
+        amounts, n_coins * 10 ** 18 * base_amount, {"from": alice}
+    )
 
     for i, coin in enumerate(coins):
         if coin == ETH_ADDRESS:
@@ -97,7 +109,9 @@ def test_no_totalsupply(alice, swap, pool_token, n_coins):
         swap.remove_liquidity_imbalance([0] * n_coins, 0, {"from": alice})
 
 
-def test_event(alice, bob, swap, pool_token, coins, initial_amounts, n_coins, base_amount):
+def test_event(
+    alice, bob, swap, pool_token, coins, initial_amounts, n_coins, base_amount
+):
     pool_token.transfer(bob, pool_token.balanceOf(alice), {"from": alice})
     amounts = [i // 5 for i in initial_amounts]
     max_burn = n_coins * 10 ** 18 * base_amount

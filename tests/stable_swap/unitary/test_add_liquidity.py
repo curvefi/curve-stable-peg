@@ -5,7 +5,9 @@ from brownie import ETH_ADDRESS
 pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "mint_bob", "approve_bob")
 
 
-def test_add_liquidity(bob, swap, coins, pool_token, initial_amounts, base_amount, n_coins):
+def test_add_liquidity(
+    bob, swap, coins, pool_token, initial_amounts, base_amount, n_coins
+):
     value = initial_amounts[0] if ETH_ADDRESS in coins else 0
     swap.add_liquidity(initial_amounts, 0, {"from": bob, "value": value})
 

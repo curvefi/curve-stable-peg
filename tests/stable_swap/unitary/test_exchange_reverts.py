@@ -29,7 +29,9 @@ def test_min_dy_too_high(bob, swap, coins, sending, receiving, decimals):
 
     min_dy = swap.get_dy(sending, receiving, amount)
     with brownie.reverts():
-        swap.exchange(sending, receiving, amount, min_dy + 2, {"from": bob, "value": value})
+        swap.exchange(
+            sending, receiving, amount, min_dy + 2, {"from": bob, "value": value}
+        )
 
 
 @pytest.mark.parametrize("idx", range(2))
