@@ -1,7 +1,9 @@
-import pytest
 import brownie
+import pytest
 
-pytestmark = pytest.mark.usefixtures("add_initial_liquidity", "provide_token_to_peg_keeper", "set_peg_keeper")
+pytestmark = pytest.mark.usefixtures(
+    "add_initial_liquidity", "provide_token_to_peg_keeper", "set_peg_keeper"
+)
 
 
 def test_add(swap, peg, pegged, initial_amounts, peg_keeper):
@@ -56,7 +58,9 @@ def test_remove_via_token(swap, peg, pegged, pool_token, peg_keeper):
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [peg.balanceOf(swap), pegged.balanceOf(swap)]
 
-    amount = swap.peg_keeper_remove_via_token(token_amount, {"from": peg_keeper}).return_value
+    amount = swap.peg_keeper_remove_via_token(
+        token_amount, {"from": peg_keeper}
+    ).return_value
     assert amount > 0
 
     new_balances = [swap.balances(0), swap.balances(1)]
