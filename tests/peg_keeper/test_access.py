@@ -43,6 +43,13 @@ def test_set_new_min_asymmetry(peg_keeper, admin, alice):
     assert peg_keeper.min_asymmetry() == new_min_asymmetry
 
 
+def test_set_new_min_asymmetry_bad_value(peg_keeper, admin, alice):
+    with brownie.reverts():
+        peg_keeper.set_new_min_asymmetry(0, {"from": admin})
+    with brownie.reverts():
+        peg_keeper.set_new_min_asymmetry(10 ** 10, {"from": admin})
+
+
 def test_commit_new_admin_access(peg_keeper, alice):
     with brownie.reverts("Access denied."):
         peg_keeper.commit_new_admin(alice, {"from": alice})
