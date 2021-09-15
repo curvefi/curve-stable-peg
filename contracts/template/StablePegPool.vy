@@ -97,9 +97,6 @@ MAX_A_CHANGE: constant(uint256) = 10
 ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
 MIN_RAMP_TIME: constant(uint256) = 86400
 
-# (x * y) / (x + y) ** 2
-# MIN_ASYMMETRY: constant(uint256) = 100 * PRECISION
-
 coins: public(address[N_COINS])
 balances: public(uint256[N_COINS])
 fee: public(uint256)  # fee * 1e10
@@ -253,13 +250,6 @@ def _get_D(_xp: uint256[N_COINS], _amp: uint256) -> uint256:
 @internal
 def _get_D_mem(_balances: uint256[N_COINS], _amp: uint256) -> uint256:
     return self._get_D(self._xp_mem(_balances), _amp)
-
-
-# @internal
-# def _get_asymmetry() -> uint256:
-#     x: uint256 = self.balances(0)
-#     y: uint256 = self.balances(1)
-#     return 2 * x * y / ((x + y) ** 2 / 10 ** 18)
 
 
 @internal

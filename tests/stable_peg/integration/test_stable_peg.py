@@ -17,11 +17,11 @@ MIN_COIN = 10 ** 6
 class StateMachine:
     """
     Stateful test that performs a series of deposits, swaps and withdrawals
-    and confirms that the virtual price only goes up.
+    and confirms that peg keeper does not fail and pegs correctly.
     """
 
     st_idx = strategy("int", min_value=0, max_value=1)
-    st_pct = strategy("decimal", min_value="0.5", max_value="1", places=2)
+    st_pct = strategy("decimal", min_value="0.5", max_value="10000", places=2)
 
     def __init__(cls, alice, swap, decimals, min_asymmetry):
         cls.alice = alice
@@ -123,13 +123,13 @@ class StateMachine:
 
     def invariant_advance_time(self):
         """
-        Advance the clock by 1 hour between each action.
+        Advance the clock by 15 minutes between each action.
         Needed for action_delay in Peg Keeper.
         """
         chain.sleep(15 * 60)
 
 
-@pytest.mark.parametrize("min_asymmetry", [2, 2e7])
+@pytest.mark.parametrize("min_asymmetry", [2, 2e3])
 def test_always_peg(
     add_initial_liquidity,
     state_machine,
@@ -151,5 +151,5 @@ def test_always_peg(
         swap,
         decimals,
         min_asymmetry,
-        settings={"max_examples": 25, "stateful_step_count": 25},
+        settings={"max_examples": 25, "stateful_step_count": 50},
     )

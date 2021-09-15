@@ -4,20 +4,17 @@
 
 
 interface CurvePool:
-    def peg_keeper_add(_amount: uint256) -> uint256: nonpayable
     def balances(i_coin: uint256) -> uint256: view
-    def calc_token_amount(amounts: uint256[2], deposit: bool) -> uint256: view
-    def calc_withdraw_one_coin(_token_amount: uint256, i: int128) -> uint256: nonpayable
     def coins(i: uint256) -> address: view
     def lp_token() -> address: view
+    def peg_keeper_add(_amount: uint256) -> uint256: nonpayable
     def peg_keeper_remove(_amount: uint256) -> uint256: nonpayable
     def peg_keeper_remove_via_token(_token_amount: uint256) -> uint256: nonpayable
-    def token() -> address: view
+    def calc_token_amount(amounts: uint256[2], deposit: bool) -> uint256: view
+    def calc_withdraw_one_coin(_token_amount: uint256, i: int128) -> uint256: nonpayable
 
 interface PoolToken:
     def balanceOf(arg0: address) -> uint256: view
-    # Will be needed to give profit
-    def transfer(_to: address, _amount: uint256): nonpayable
 
 interface ERC20Pegged:
     def approve(_spender: address, _amount: uint256): nonpayable

@@ -40,7 +40,7 @@ def test_update_delay(peg_keeper, swap, peg, pegged, bob, method):
 
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
-@flaky
+@flaky(max_runs=3)
 def test_update_no_delay(peg_keeper, swap, peg, pegged, bob, method):
     if method == "provide":
         _prepare_for_provide(swap, peg, bob)
