@@ -60,6 +60,7 @@ def __init__(_pool: address, _min_asymmetry: uint256):
     self.pool = _pool
     self.pool_token = CurvePool(_pool).lp_token()
     self.pegged = CurvePool(_pool).coins(1)
+    ERC20Pegged(self.pegged).approve(_pool, MAX_UINT256)
 
     self.admin = msg.sender
 
@@ -68,15 +69,8 @@ def __init__(_pool: address, _min_asymmetry: uint256):
 
 @internal
 def _provide(_amount: uint256) -> bool:
-    pegged: address = self.pegged
-    pool: address = self.pool
-
-    # Mint '_amount' of coin
-    ERC20Pegged(pegged).mint(self, _amount)
-    ERC20Pegged(pegged).approve(pool, _amount)
-
-    # Add '_amount' of coin to the pool
-    CurvePool(pool).peg_keeper_add(_amount)
+    ERC20Pegged(self.pegged).mint(self, _amount)
+    CurvePool(self.pool).peg_keeper_add(_amount)
 
     self.last_change = block.timestamp
     log Provide(_amount)
