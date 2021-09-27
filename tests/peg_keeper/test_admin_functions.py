@@ -2,7 +2,6 @@ import brownie
 from brownie import ZERO_ADDRESS, chain
 from flaky import flaky
 
-
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
 
