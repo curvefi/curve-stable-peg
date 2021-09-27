@@ -36,6 +36,7 @@ event Profit:
 
 # Time between minting/burning coins
 ACTION_DELAY: constant(uint256) = 15 * 60
+ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
 
 # Minimum value to withdraw, if can't withdraw full amount
 MIN_PEGGED_AMOUNT: constant(uint256) = 10 ** 18
@@ -61,6 +62,8 @@ future_admin: public(address)
 # Receiver of profit
 receiver: public(address)
 future_receiver: public(address)
+
+admin_actions_deadline: public(uint256)
 
 
 @external
@@ -196,6 +199,9 @@ def commit_new_admin(_new_admin: address):
     @param _new_admin Address of the new admin
     """
     assert msg.sender == self.admin, "Access denied."
+
+    deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
+    self.admin_actions_deadline = deadline
     self.future_admin = _new_admin
 
 
@@ -205,8 +211,11 @@ def apply_new_admin():
     @notice Apply new admin of the Peg Keeper
     @dev Should be executed from new admin
     """
-    assert msg.sender == self.future_admin, "Access denied."
+    assert block.timestamp >= self.admin_actions_deadline, "Insufficient time."
+    assert self.admin_actions_deadline != 0, "No active action."
+
     self.admin = self.future_admin
+    self.admin_actions_deadline = 0
 
 
 @external
@@ -216,6 +225,9 @@ def commit_new_receiver(_new_receiver: address):
     @param _new_receiver Address of the new receiver
     """
     assert msg.sender == self.admin, "Access denied."
+
+    deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
+    self.admin_actions_deadline = deadline
     self.future_receiver = _new_receiver
 
 
@@ -224,5 +236,8 @@ def apply_new_receiver():
     """
     @notice Apply new receiver of profit
     """
-    assert msg.sender == self.admin, "Access denied."
+    assert block.timestamp >= self.admin_actions_deadline, "Insufficient time."
+    assert self.admin_actions_deadline != 0, "No active action."
+
     self.receiver = self.future_receiver
+    self.admin_actions_deadline = 0
