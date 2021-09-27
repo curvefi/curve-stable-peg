@@ -18,7 +18,7 @@ def test_provide(swap, peg, pegged, alice, amount, peg_keeper):
     new_balances = [swap.balances(0), swap.balances(1)]
     new_real_balances = [peg.balanceOf(swap), pegged.balanceOf(swap)]
     assert new_balances[0] == balances[0]
-    assert int(new_balances[1]) == balances[1] + amount // 5
+    assert new_balances[1] == balances[1] + amount // 5
 
     assert new_real_balances[0] == real_balances[0]
     assert new_real_balances[1] == real_balances[1] + amount // 5

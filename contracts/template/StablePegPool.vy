@@ -744,8 +744,9 @@ def calc_withdraw_one_coin(_token_amount: uint256, i: int128) -> uint256:
     return self._calc_withdraw_one_coin(_token_amount, i)[0]
 
 
-@internal
-def _remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: uint256, sender: address) -> uint256:
+@external
+@nonreentrant('lock')
+def remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: uint256) -> uint256:
     """
     @notice Withdraw a single coin from the pool
     @param _token_amount Amount of LP tokens to burn in the withdrawal
@@ -762,13 +763,13 @@ def _remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: u
     assert dy >= _min_amount, "Not enough coins removed"
 
     self.balances[i] -= (dy + dy_fee * self.admin_fee / FEE_DENOMINATOR)
-    CurveToken(self.lp_token).burnFrom(sender, _token_amount)  # dev: insufficient funds
+    CurveToken(self.lp_token).burnFrom(msg.sender, _token_amount)  # dev: insufficient funds
 
     _response: Bytes[32] = raw_call(
         self.coins[i],
         concat(
             method_id("transfer(address,uint256)"),
-            convert(sender, bytes32),
+            convert(msg.sender, bytes32),
             convert(dy, bytes32),
         ),
         max_outsize=32,
@@ -776,26 +777,12 @@ def _remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: u
     if len(_response) > 0:
         assert convert(_response, bool)
 
-    log RemoveLiquidityOne(sender, _token_amount, dy, total_supply - _token_amount)
+    log RemoveLiquidityOne(msg.sender, _token_amount, dy, total_supply - _token_amount)
 
-    if sender != self.peg_keeper:
+    if msg.sender != self.peg_keeper:
         self._peg()
 
     return dy
-
-
-@external
-@nonreentrant('lock')
-def remove_liquidity_one_coin(_token_amount: uint256, i: int128, _min_amount: uint256) -> uint256:
-    return self._remove_liquidity_one_coin(_token_amount, i, _min_amount, msg.sender)
-
-
-@external
-@nonreentrant('peg-keeper')
-def peg_keeper_remove_via_token(_token_amount: uint256) -> uint256:
-    assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
-    # Can not be rugged with min_amount=0
-    return self._remove_liquidity_one_coin(_token_amount, 1, 0, msg.sender)
 
 
 ### Admin functions ###

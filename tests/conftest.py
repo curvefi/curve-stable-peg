@@ -120,8 +120,8 @@ def swap(StablePegPool, coins, pool_token, alice):
 
 
 @pytest.fixture(scope="module")
-def peg_keeper(PegKeeper, swap, admin, pegged, alice):
-    contract = PegKeeper.deploy(swap, 2, {"from": admin})
+def peg_keeper(PegKeeper, swap, admin, receiver, pegged, alice):
+    contract = PegKeeper.deploy(swap, receiver, 2, {"from": admin})
     pegged.add_minter(contract, {"from": alice})
     yield contract
 

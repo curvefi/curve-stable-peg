@@ -1,4 +1,5 @@
 import pytest
+from brownie import ZERO_ADDRESS, chain
 
 
 @pytest.fixture(scope="module")
@@ -75,17 +76,24 @@ def set_fees(chain, swap, alice):
 
 
 @pytest.fixture(scope="module")
-def provide_token_to_peg_keeper(
-    swap, peg, pegged, alice, pool_token, peg_keeper, coins, initial_amounts
-):
-    """ Add liquidity to the pool and split received LP tokens between alice and peg_keeper """
-    for coin, amount in zip(coins, initial_amounts):
-        coin._mint_for_testing(alice, amount)
-        coin.approve(swap, amount, {"from": alice})
+def provide_token_to_peg_keeper(swap, peg, alice, peg_keeper, initial_amounts):
+    """ Add 5x of peg, so Peg Keeper mints x, then remove 4x, so pool is balanced. """
+    assert swap.balances(0) == swap.balances(1)
+    amount = initial_amounts[0] * 5
+    peg._mint_for_testing(alice, amount)
+    peg.approve(swap, amount, {"from": alice})
 
-    swap.add_liquidity(initial_amounts, 0, {"from": alice})
-    lp_amount = pool_token.balanceOf(alice)
-    pool_token.transfer(peg_keeper, lp_amount // 2, {"from": alice})
+    swap.add_liquidity([amount, 0], 0, {"from": alice})
+    if swap.peg_keeper() == ZERO_ADDRESS:
+        swap.set_peg_keeper(peg_keeper, {"from": alice})
+        peg_keeper.update({"from": swap})
+        swap.set_peg_keeper(ZERO_ADDRESS, {"from": alice})
+
+    remove_amount = swap.balances(0) - swap.balances(1)
+    swap.remove_liquidity_imbalance([remove_amount, 0], 2 ** 256 - 1, {"from": alice})
+
+    assert swap.balances(0) == swap.balances(1)
+    chain.sleep(15 * 60)
 
 
 @pytest.fixture(scope="module")
