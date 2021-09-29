@@ -302,8 +302,9 @@ def calc_token_amount(_amounts: uint256[N_COINS], _is_deposit: bool) -> uint256:
     return diff * token_amount / D0
 
 
-@internal
-def _add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256, sender: address) -> uint256:
+@external
+@nonreentrant('lock')
+def add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256) -> uint256:
     """
     @notice Deposit coins into the pool
     @param _amounts List of amounts of coins to deposit
@@ -366,7 +367,7 @@ def _add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256, sender
                 self.coins[i],
                 concat(
                     method_id("transferFrom(address,address,uint256)"),
-                    convert(sender, bytes32),
+                    convert(msg.sender, bytes32),
                     convert(self, bytes32),
                     convert(_amounts[i], bytes32),
                 ),
@@ -377,27 +378,67 @@ def _add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256, sender
             # end "safeTransferFrom"
 
     # Mint pool tokens
-    CurveToken(lp_token).mint(sender, mint_amount)
+    CurveToken(lp_token).mint(msg.sender, mint_amount)
 
-    log AddLiquidity(sender, _amounts, fees, D1, token_supply + mint_amount)
+    log AddLiquidity(msg.sender, _amounts, fees, D1, token_supply + mint_amount)
 
-    if sender != self.peg_keeper:
-        self._peg()
+    self._peg()
 
     return mint_amount
-
-
-@external
-@nonreentrant('lock')
-def add_liquidity(_amounts: uint256[N_COINS], _min_mint_amount: uint256) -> uint256:
-    return self._add_liquidity(_amounts, _min_mint_amount, msg.sender)
-
 
 @external
 @nonreentrant('peg-keeper')
 def peg_keeper_add(_amount: uint256) -> uint256:
+    """
+    @notice Deposit method for Peg Keeper (no fee)
+    @param _amount amount of Pegger coin to deposit
+    @return Amount of LP tokens received by depositing
+    """
     assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
-    return self._add_liquidity([0, _amount], 0, msg.sender)
+    assert not self.is_killed  # dev: is killed
+
+    _min_mint_amount: uint256 = 0 # TODO front running?
+
+    amp: uint256 = self._A()
+    old_balances: uint256[N_COINS] = self.balances
+
+    # Initial invariant
+    D0: uint256 = self._get_D_mem(old_balances, amp)
+
+    new_balances: uint256[N_COINS] = [old_balances[0], old_balances[1] + _amount]
+    self.balances[1] = new_balances[1]
+
+    # Invariant after change
+    D1: uint256 = self._get_D_mem(new_balances, amp)
+    assert D1 > D0
+
+    lp_token: address = self.lp_token
+    token_supply: uint256 = CurveToken(lp_token).totalSupply()
+    mint_amount: uint256 = token_supply * (D1 - D0) / D0
+    assert mint_amount >= _min_mint_amount, "Slippage screwed you"
+
+    # "safeTransferFrom" which works for ERC20s which return bool or not
+    _response: Bytes[32] = raw_call(
+        self.coins[1],
+        concat(
+            method_id("transferFrom(address,address,uint256)"),
+            convert(msg.sender, bytes32),
+            convert(self, bytes32),
+            convert(_amount, bytes32),
+        ),
+        max_outsize=32,
+    )
+    if len(_response) > 0:
+        assert convert(_response, bool)  # dev: failed transfer
+    # end "safeTransferFrom"
+
+    # Mint pool tokens
+    CurveToken(lp_token).mint(msg.sender, mint_amount)
+
+    log AddLiquidity(msg.sender, [0, _amount], empty(uint256[N_COINS]), D1, token_supply + mint_amount)
+
+    return mint_amount
+
 
 
 @view
@@ -577,8 +618,9 @@ def remove_liquidity(_amount: uint256, _min_amounts: uint256[N_COINS]) -> uint25
     return amounts
 
 
-@internal
-def _remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uint256, sender: address) -> uint256:
+@external
+@nonreentrant('lock')
+def remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uint256) -> uint256:
     """
     @notice Withdraw coins from the pool in an imbalanced amount
     @param _amounts List of amounts of underlying coins to withdraw
@@ -618,14 +660,14 @@ def _remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: ui
     token_amount += 1  # In case of rounding errors - make it unfavorable for the "attacker"
     assert token_amount <= _max_burn_amount, "Slippage screwed you"
 
-    CurveToken(lp_token).burnFrom(sender, token_amount)  # dev: insufficient funds
+    CurveToken(lp_token).burnFrom(msg.sender, token_amount)  # dev: insufficient funds
     for i in range(N_COINS):
         if _amounts[i] != 0:
             _response: Bytes[32] = raw_call(
                 self.coins[i],
                 concat(
                     method_id("transfer(address,uint256)"),
-                    convert(sender, bytes32),
+                    convert(msg.sender, bytes32),
                     convert(_amounts[i], bytes32),
                 ),
                 max_outsize=32,
@@ -633,25 +675,56 @@ def _remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: ui
             if len(_response) > 0:
                 assert convert(_response, bool)
 
-    log RemoveLiquidityImbalance(sender, _amounts, fees, D1, token_supply - token_amount)
+    log RemoveLiquidityImbalance(msg.sender, _amounts, fees, D1, token_supply - token_amount)
 
-    if sender != self.peg_keeper:
-        self._peg()
+    self._peg()
 
     return token_amount
-
-
-@external
-@nonreentrant('lock')
-def remove_liquidity_imbalance(_amounts: uint256[N_COINS], _max_burn_amount: uint256) -> uint256:
-    return self._remove_liquidity_imbalance(_amounts, _max_burn_amount, msg.sender)
-
 
 @external
 @nonreentrant('peg-keeper')
 def peg_keeper_remove(_amount: uint256) -> uint256:
+    """
+        @notice Withdraw method for Peg Keeper (no fee)
+        @param _amount amount of Pegger coins to withdraw
+        @return Actual amount of the LP token burned in the withdrawal
+        """
     assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
-    return self._remove_liquidity_imbalance([0, _amount], MAX_UINT256, msg.sender)
+    assert not self.is_killed  # dev: is killed
+
+    _max_burn_amount: uint256 = MAX_UINT256 # TODO front running?
+
+    amp: uint256 = self._A()
+    old_balances: uint256[N_COINS] = self.balances
+    D0: uint256 = self._get_D_mem(old_balances, amp)
+
+    new_balances: uint256[N_COINS] = [old_balances[0], old_balances[1] - _amount]
+    self.balances[1] = new_balances[1]
+    D1: uint256 = self._get_D_mem(new_balances, amp)
+
+    lp_token: address = self.lp_token
+    token_supply: uint256 = CurveToken(lp_token).totalSupply()
+    token_amount: uint256 = (D0 - D1) * token_supply / D0
+    assert token_amount != 0  # dev: zero tokens burned
+    token_amount += 1  # In case of rounding errors - make it unfavorable for the "attacker"
+    assert token_amount <= _max_burn_amount, "Slippage screwed you"
+
+    CurveToken(lp_token).burnFrom(msg.sender, token_amount)  # dev: insufficient funds
+    _response: Bytes[32] = raw_call(
+        self.coins[1],
+        concat(
+            method_id("transfer(address,uint256)"),
+            convert(msg.sender, bytes32),
+            convert(_amount, bytes32),
+        ),
+        max_outsize=32,
+    )
+    if len(_response) > 0:
+        assert convert(_response, bool)
+
+    log RemoveLiquidityImbalance(msg.sender, [0, _amount], empty(uint256[N_COINS]), D1, token_supply - token_amount)
+
+    return token_amount
 
 
 @pure
