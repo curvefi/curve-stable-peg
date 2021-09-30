@@ -71,3 +71,8 @@ def test_remove_liquidity_more_pegged(
 
     diff = amount - amount // 2
     balance_change_after_provide(diff)
+
+
+def test_remove_liquidity_after_kill(alice, swap, n_coins, pool_token):
+    swap.kill_me({"from": alice})
+    swap.remove_liquidity(pool_token.balanceOf(alice), [0] * n_coins, {"from": alice})

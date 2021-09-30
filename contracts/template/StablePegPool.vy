@@ -395,9 +395,6 @@ def peg_keeper_add(_amount: uint256) -> uint256:
     @return Amount of LP tokens received by depositing
     """
     assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
-    assert not self.is_killed  # dev: is killed
-
-    _min_mint_amount: uint256 = 0 # TODO front running?
 
     amp: uint256 = self._A()
     old_balances: uint256[N_COINS] = self.balances
@@ -415,7 +412,6 @@ def peg_keeper_add(_amount: uint256) -> uint256:
     lp_token: address = self.lp_token
     token_supply: uint256 = CurveToken(lp_token).totalSupply()
     mint_amount: uint256 = token_supply * (D1 - D0) / D0
-    assert mint_amount >= _min_mint_amount, "Slippage screwed you"
 
     # "safeTransferFrom" which works for ERC20s which return bool or not
     _response: Bytes[32] = raw_call(
@@ -613,7 +609,8 @@ def remove_liquidity(_amount: uint256, _min_amounts: uint256[N_COINS]) -> uint25
 
     log RemoveLiquidity(msg.sender, amounts, empty(uint256[N_COINS]), total_supply - _amount)
 
-    self._peg()
+    if not self.is_killed:
+        self._peg()
 
     return amounts
 
@@ -690,9 +687,6 @@ def peg_keeper_remove(_amount: uint256) -> uint256:
         @return Actual amount of the LP token burned in the withdrawal
         """
     assert msg.sender == self.peg_keeper, "Callable only by Peg Keeper"
-    assert not self.is_killed  # dev: is killed
-
-    _max_burn_amount: uint256 = MAX_UINT256 # TODO front running?
 
     amp: uint256 = self._A()
     old_balances: uint256[N_COINS] = self.balances
@@ -707,7 +701,6 @@ def peg_keeper_remove(_amount: uint256) -> uint256:
     token_amount: uint256 = (D0 - D1) * token_supply / D0
     assert token_amount != 0  # dev: zero tokens burned
     token_amount += 1  # In case of rounding errors - make it unfavorable for the "attacker"
-    assert token_amount <= _max_burn_amount, "Slippage screwed you"
 
     CurveToken(lp_token).burnFrom(msg.sender, token_amount)  # dev: insufficient funds
     _response: Bytes[32] = raw_call(
