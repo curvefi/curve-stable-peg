@@ -20,7 +20,17 @@ class StateMachine:
     st_idx = strategy("int", min_value=0, max_value=1)
     st_pct = strategy("decimal", min_value="0.5", max_value="10000", places=2)
 
-    def __init__(cls, alice, swap, pool_token, pegged, peg_keeper, decimals, receiver):
+    def __init__(
+        cls,
+        alice,
+        swap,
+        pool_token,
+        pegged,
+        peg_keeper,
+        decimals,
+        receiver,
+        always_withdraw,
+    ):
         cls.alice = alice
         cls.swap = swap
         cls.pool_token = pool_token
@@ -28,6 +38,7 @@ class StateMachine:
         cls.peg_keeper = peg_keeper
         cls.decimals = decimals
         cls.receiver = receiver
+        cls.always_withdraw = always_withdraw
 
     def setup(self):
         # Needed in withdraw profit check
@@ -112,7 +123,7 @@ class StateMachine:
         assert self.swap.balances(0) == self.swap.balances(1) - 4 * debt - 5
 
         # withdraw_profit, mint, add_liquidity
-        chain.undo(3)
+        chain.undo(2 if self.always_withdraw else 3)
 
     def invariant_advance_time(self):
         """
@@ -122,6 +133,7 @@ class StateMachine:
         chain.sleep(15 * 60)
 
 
+@pytest.mark.parametrize("always_withdraw", [False, True])
 def test_withdraw_profit(
     add_initial_liquidity,
     state_machine,
@@ -134,6 +146,7 @@ def test_withdraw_profit(
     admin,
     receiver,
     alice,
+    always_withdraw,
 ):
     set_fees(4 * 10 ** 7, 0)
     peg_keeper.set_new_min_asymmetry(2, {"from": admin})
@@ -147,5 +160,6 @@ def test_withdraw_profit(
         peg_keeper,
         decimals,
         receiver,
+        always_withdraw,
         settings={"max_examples": 10, "stateful_step_count": 10},
     )

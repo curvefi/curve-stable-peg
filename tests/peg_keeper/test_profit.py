@@ -30,7 +30,9 @@ def test_calc_initial_profit(peg_keeper, swap, pool_token):
     """ Peg Keeper always generate profit, including first mint. """
     debt = peg_keeper.debt()
     assert debt / swap.get_virtual_price() < pool_token.balanceOf(peg_keeper)
-    aim_profit = pool_token.balanceOf(peg_keeper) - debt / swap.get_virtual_price()
+    aim_profit = (
+        pool_token.balanceOf(peg_keeper) - debt * 10 ** 18 / swap.get_virtual_price()
+    )
     assert aim_profit > peg_keeper.calc_profit() > 0
 
 
@@ -77,6 +79,11 @@ def test_withdraw_profit(
     swap.set_peg_keeper(peg_keeper, {"from": alice})
     assert peg_keeper.update({"from": swap}).return_value
     balance_change_after_withdraw(5 * initial_amounts[1])
+
+
+def test_0_after_withdraw(peg_keeper, admin):
+    peg_keeper.withdraw_profit({"from": admin})
+    assert peg_keeper.calc_profit() == 0
 
 
 def test_withdraw_profit_access(peg_keeper, alice, set_peg_keeper):
