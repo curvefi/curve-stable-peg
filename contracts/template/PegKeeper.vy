@@ -199,6 +199,7 @@ def commit_new_admin(_new_admin: address):
     @param _new_admin Address of the new admin
     """
     assert msg.sender == self.admin, "Access denied."
+    assert self.admin_actions_deadline == 0 # dev: active action
 
     deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
     self.admin_actions_deadline = deadline
@@ -225,6 +226,7 @@ def commit_new_receiver(_new_receiver: address):
     @param _new_receiver Address of the new receiver
     """
     assert msg.sender == self.admin, "Access denied."
+    assert self.admin_actions_deadline == 0 # dev: active action
 
     deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
     self.admin_actions_deadline = deadline

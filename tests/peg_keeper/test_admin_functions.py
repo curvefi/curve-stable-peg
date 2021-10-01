@@ -150,3 +150,31 @@ def test_revert_new_receiver_without_commit(peg_keeper, admin):
     peg_keeper.revert_new_staff({"from": admin})
 
     assert peg_keeper.admin_actions_deadline() == 0
+
+
+def test_commit_new_admin_already_active1(peg_keeper, admin, alice):
+    peg_keeper.commit_new_admin(alice, {"from": admin})
+
+    with brownie.reverts():
+        peg_keeper.commit_new_admin(alice, {"from": admin})
+
+
+def test_commit_new_admin_already_active2(peg_keeper, admin, alice):
+    peg_keeper.commit_new_receiver(alice, {"from": admin})
+
+    with brownie.reverts():
+        peg_keeper.commit_new_admin(alice, {"from": admin})
+
+
+def test_commit_new_receiver_already_active1(peg_keeper, admin, alice):
+    peg_keeper.commit_new_admin(alice, {"from": admin})
+
+    with brownie.reverts():
+        peg_keeper.commit_new_receiver(alice, {"from": admin})
+
+
+def test_commit_new_receiver_already_active2(peg_keeper, admin, alice):
+    peg_keeper.commit_new_receiver(alice, {"from": admin})
+
+    with brownie.reverts():
+        peg_keeper.commit_new_receiver(alice, {"from": admin})
