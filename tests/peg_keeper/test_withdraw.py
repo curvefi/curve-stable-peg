@@ -31,7 +31,7 @@ def test_withdraw(swap, peg, pegged, alice, amount, peg_keeper):
 def test_withdraw_insufficient_debt(
     swap, peg, pegged, alice, initial_amounts, peg_keeper
 ):
-    """ Provide 1000x of pegged, so Peg Keeper can't withdraw the whole 1/5 part. """
+    """Provide 1000x of pegged, so Peg Keeper can't withdraw the whole 1/5 part."""
     amount = 1000 * initial_amounts[1]
     pegged._mint_for_testing(alice, amount, {"from": alice})
     pegged.approve(swap, amount, {"from": alice})

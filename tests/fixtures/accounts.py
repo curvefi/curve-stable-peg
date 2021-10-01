@@ -3,13 +3,13 @@ import pytest
 
 @pytest.fixture(scope="session")
 def admin(accounts):
-    """ Admin of Peg Keeper """
+    """Admin of Peg Keeper"""
     yield accounts[1]
 
 
 @pytest.fixture(scope="session")
 def alice(accounts):
-    """ Also owner of deployed contracts """
+    """Also owner of deployed contracts"""
     yield accounts[2]
 
 
@@ -25,5 +25,5 @@ def charlie(accounts):
 
 @pytest.fixture(scope="session")
 def receiver(accounts):
-    """ Peg Keeper profit receiver """
+    """Peg Keeper profit receiver"""
     yield accounts[5]

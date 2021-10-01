@@ -77,7 +77,7 @@ def set_fees(chain, swap, alice):
 
 @pytest.fixture(scope="module")
 def provide_token_to_peg_keeper(swap, peg, alice, peg_keeper, initial_amounts):
-    """ Add 5x of peg, so Peg Keeper mints x, then remove 4x, so pool is balanced. """
+    """Add 5x of peg, so Peg Keeper mints x, then remove 4x, so pool is balanced."""
     assert swap.balances(0) == swap.balances(1)
     amount = initial_amounts[0] * 5
     peg._mint_for_testing(alice, amount)

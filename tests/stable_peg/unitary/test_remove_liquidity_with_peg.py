@@ -10,17 +10,23 @@ pytestmark = pytest.mark.usefixtures(
 
 
 def test_remove_liquidity_peg(swap, pool_token, alice, balance_change_after_withdraw):
-    """ Remove [x, 0] """
+    """Remove [x, 0]"""
     amount = swap.remove_liquidity_one_coin(
-        pool_token.balanceOf(alice), 0, 0, {"from": alice},  # coin  # min_amount
+        pool_token.balanceOf(alice),
+        0,  # coin
+        0,  # min_amount
+        {"from": alice},
     ).return_value
     balance_change_after_withdraw(amount)
 
 
 def test_remove_liquidity_pegged(swap, pool_token, alice, balance_change_after_provide):
-    """ Remove [0, x] """
+    """Remove [0, x]"""
     amount = swap.remove_liquidity_one_coin(
-        pool_token.balanceOf(alice), 1, 0, {"from": alice},  # coin  # min_amount
+        pool_token.balanceOf(alice),
+        1,  # coin
+        0,  # min_amount
+        {"from": alice},
     ).return_value
     balance_change_after_provide(amount)
 
@@ -28,7 +34,7 @@ def test_remove_liquidity_pegged(swap, pool_token, alice, balance_change_after_p
 def test_remove_liquidity_equal(
     swap, pool_token, peg, pegged, alice, peg_keeper, admin
 ):
-    """ Remove [x, x] """
+    """Remove [x, x]"""
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [peg.balanceOf(swap), pegged.balanceOf(swap)]
 
@@ -46,7 +52,7 @@ def test_remove_liquidity_equal(
 def test_remove_liquidity_more_peg(
     swap, pool_token, peg, pegged, alice, peg_keeper, balance_change_after_withdraw
 ):
-    """ Remove [2 * x, x] """
+    """Remove [2 * x, x]"""
     token_balance = pool_token.balanceOf(alice)
     # Balances in the pool are equal
     amount = swap.calc_withdraw_one_coin(2 * token_balance // 3, 0, {"from": alice})
@@ -61,7 +67,7 @@ def test_remove_liquidity_more_peg(
 def test_remove_liquidity_more_pegged(
     swap, pool_token, alice, balance_change_after_provide
 ):
-    """ Remove [x, 2 * x] """
+    """Remove [x, 2 * x]"""
     token_balance = pool_token.balanceOf(alice)
     # Balances in the pool are equal
     amount = swap.calc_withdraw_one_coin(2 * token_balance // 3, 1, {"from": alice})

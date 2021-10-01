@@ -2,14 +2,16 @@ import pytest
 from brownie.test import given, strategy
 
 pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity", "provide_token_to_peg_keeper", "mint_alice",
+    "add_initial_liquidity",
+    "provide_token_to_peg_keeper",
+    "mint_alice",
 )
 
 
 @pytest.fixture(scope="module")
 def make_profit(swap, peg, pegged, initial_amounts, alice, set_fees):
     def _inner(amount):
-        """ Amount to add to balances. """
+        """Amount to add to balances."""
         set_fees(1 * 10 ** 9, 0)
         exchange_amount = amount * 5
 
@@ -27,7 +29,7 @@ def test_initial_debt(peg_keeper, initial_amounts):
 
 
 def test_calc_initial_profit(peg_keeper, swap, pool_token):
-    """ Peg Keeper always generate profit, including first mint. """
+    """Peg Keeper always generate profit, including first mint."""
     debt = peg_keeper.debt()
     assert debt / swap.get_virtual_price() < pool_token.balanceOf(peg_keeper)
     aim_profit = (
@@ -63,7 +65,7 @@ def test_withdraw_profit(
     balance_change_after_withdraw,
     donate_fee,
 ):
-    """ Withdraw profit and update for the whole debt. """
+    """Withdraw profit and update for the whole debt."""
     make_profit(donate_fee)
 
     profit = peg_keeper.calc_profit()
