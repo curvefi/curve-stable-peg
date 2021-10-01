@@ -241,3 +241,10 @@ def apply_new_receiver():
 
     self.receiver = self.future_receiver
     self.admin_actions_deadline = 0
+
+
+@external
+def revert_new_staff():
+    assert msg.sender == self.admin  # dev: only admin
+
+    self.admin_actions_deadline = 0

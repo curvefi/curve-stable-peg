@@ -80,6 +80,25 @@ def test_apply_new_admin_no_active(peg_keeper, alice):
         peg_keeper.apply_new_admin({"from": alice})
 
 
+def test_revert_new_admin(peg_keeper, admin, alice):
+    peg_keeper.commit_new_admin(alice, {"from": admin})
+    peg_keeper.revert_new_staff({"from": admin})
+
+    assert peg_keeper.admin_actions_deadline() == 0
+
+
+def test_revert_new_admin_only_admin(peg_keeper, admin, alice):
+    peg_keeper.commit_new_admin(alice, {"from": admin})
+    with brownie.reverts():
+        peg_keeper.revert_new_staff({"from": alice})
+
+
+def test_revert_new_admin_without_commit(peg_keeper, admin):
+    peg_keeper.revert_new_staff({"from": admin})
+
+    assert peg_keeper.admin_actions_deadline() == 0
+
+
 def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
 
@@ -112,3 +131,22 @@ def test_apply_new_receiver_deadline(peg_keeper, admin, alice):
 def test_apply_new_receiver_no_active(peg_keeper, alice):
     with brownie.reverts("No active action."):
         peg_keeper.apply_new_receiver({"from": alice})
+
+
+def test_revert_new_receiver(peg_keeper, admin, alice):
+    peg_keeper.commit_new_receiver(alice, {"from": admin})
+    peg_keeper.revert_new_staff({"from": admin})
+
+    assert peg_keeper.admin_actions_deadline() == 0
+
+
+def test_revert_new_receiver_only_admin(peg_keeper, admin, alice):
+    peg_keeper.commit_new_receiver(alice, {"from": admin})
+    with brownie.reverts():
+        peg_keeper.revert_new_staff({"from": alice})
+
+
+def test_revert_new_receiver_without_commit(peg_keeper, admin):
+    peg_keeper.revert_new_staff({"from": admin})
+
+    assert peg_keeper.admin_actions_deadline() == 0
