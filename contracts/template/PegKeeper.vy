@@ -125,7 +125,7 @@ def update() -> bool:
     @notice Mint or burn coins from the pool to stabilize it
     @return True if peg was maintained, otherwise False
     """
-    assert msg.sender == self.pool, "Callable only by the pool"
+    assert msg.sender == self.pool  # dev: callable only by the pool
     if self.last_change + ACTION_DELAY > block.timestamp:
         return False
 
@@ -185,9 +185,9 @@ def set_new_min_asymmetry(_new_min_asymmetry: uint256):
     @notice Commit new min_asymmetry of pool
     @param _new_min_asymmetry Min asymmetry with PRECISION
     """
-    assert msg.sender == self.admin, "Access denied."
-    assert 1 < _new_min_asymmetry, "Bad asymmetry value."
-    assert _new_min_asymmetry < ASYMMETRY_PRECISION, "Bad asymmetry value."
+    assert msg.sender == self.admin  # dev: only admin
+    assert 1 < _new_min_asymmetry  # dev: bad asymmetry value
+    assert _new_min_asymmetry < ASYMMETRY_PRECISION  # dev: bad asymmetry value
 
     self.min_asymmetry = _new_min_asymmetry
 
@@ -198,7 +198,7 @@ def commit_new_admin(_new_admin: address):
     @notice Commit new admin of the Peg Keeper
     @param _new_admin Address of the new admin
     """
-    assert msg.sender == self.admin, "Access denied."
+    assert msg.sender == self.admin  # dev: only admin
     assert self.admin_actions_deadline == 0 # dev: active action
 
     deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
@@ -212,8 +212,8 @@ def apply_new_admin():
     @notice Apply new admin of the Peg Keeper
     @dev Should be executed from new admin
     """
-    assert block.timestamp >= self.admin_actions_deadline, "Insufficient time."
-    assert self.admin_actions_deadline != 0, "No active action."
+    assert block.timestamp >= self.admin_actions_deadline  # dev: insufficient time
+    assert self.admin_actions_deadline != 0  # dev: no active action
 
     self.admin = self.future_admin
     self.admin_actions_deadline = 0
@@ -225,7 +225,7 @@ def commit_new_receiver(_new_receiver: address):
     @notice Commit new receiver of profit
     @param _new_receiver Address of the new receiver
     """
-    assert msg.sender == self.admin, "Access denied."
+    assert msg.sender == self.admin  # dev: only admin
     assert self.admin_actions_deadline == 0 # dev: active action
 
     deadline: uint256 = block.timestamp + ADMIN_ACTIONS_DELAY
@@ -238,8 +238,8 @@ def apply_new_receiver():
     """
     @notice Apply new receiver of profit
     """
-    assert block.timestamp >= self.admin_actions_deadline, "Insufficient time."
-    assert self.admin_actions_deadline != 0, "No active action."
+    assert block.timestamp >= self.admin_actions_deadline  # dev: insufficient time
+    assert self.admin_actions_deadline != 0  # dev: no active action
 
     self.receiver = self.future_receiver
     self.admin_actions_deadline = 0
