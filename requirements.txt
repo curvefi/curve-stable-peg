@@ -1,0 +1,5 @@
+black==21.9b0
+eth-brownie>=1.16.0,<2.0.0
+flake8==3.8.4
+isort==5.7.0
+flaky>=3.7.0
