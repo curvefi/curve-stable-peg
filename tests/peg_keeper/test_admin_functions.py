@@ -52,7 +52,11 @@ def test_commit_new_admin(peg_keeper, admin, alice):
 
     assert peg_keeper.admin() == admin
     assert peg_keeper.future_admin() == alice
-    assert peg_keeper.admin_actions_deadline() == chain.time() + ADMIN_ACTIONS_DEADLINE - 1
+    assert (
+        0
+        <= chain.time() + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
+        <= 1
+    )
 
 
 def test_commit_new_admin_access(peg_keeper, alice):
@@ -106,7 +110,11 @@ def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
 
     assert peg_keeper.receiver() == receiver
     assert peg_keeper.future_receiver() == alice
-    assert peg_keeper.admin_actions_deadline() == chain.time() + ADMIN_ACTIONS_DEADLINE - 1
+    assert (
+        0
+        <= chain.time() + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
+        <= 1
+    )
 
 
 def test_commit_new_receiver_access(peg_keeper, alice):
