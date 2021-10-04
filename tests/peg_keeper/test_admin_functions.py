@@ -52,6 +52,7 @@ def test_commit_new_admin(peg_keeper, admin, alice):
 
     assert peg_keeper.admin() == admin
     assert peg_keeper.future_admin() == alice
+    assert peg_keeper.admin_actions_deadline() == chain.time() + ADMIN_ACTIONS_DEADLINE - 1
 
 
 def test_commit_new_admin_access(peg_keeper, alice):
@@ -105,6 +106,7 @@ def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
 
     assert peg_keeper.receiver() == receiver
     assert peg_keeper.future_receiver() == alice
+    assert peg_keeper.admin_actions_deadline() == chain.time() + ADMIN_ACTIONS_DEADLINE - 1
 
 
 def test_commit_new_receiver_access(peg_keeper, alice):
@@ -155,7 +157,7 @@ def test_revert_new_receiver_without_commit(peg_keeper, admin):
 
 @pytest.mark.parametrize("action0", ["commit_new_admin", "commit_new_receiver"])
 @pytest.mark.parametrize("action1", ["commit_new_admin", "commit_new_receiver"])
-def test_commit_new_admin_already_active(peg_keeper, admin, alice, action0, action1):
+def test_commit_already_active(peg_keeper, admin, alice, action0, action1):
     if action0 == "commit_new_admin":
         peg_keeper.commit_new_admin(alice, {"from": admin})
     else:
