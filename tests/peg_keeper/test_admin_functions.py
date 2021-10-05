@@ -13,16 +13,20 @@ def test_parameters(peg_keeper, swap, pegged, admin, receiver):
     assert peg_keeper.admin() == admin
     assert peg_keeper.future_admin() == ZERO_ADDRESS
 
-    assert peg_keeper.receiver() == receiver
-    assert peg_keeper.future_receiver() == ZERO_ADDRESS
+    if hasattr(peg_keeper, "receiver"):
+        assert peg_keeper.receiver() == receiver
+        assert peg_keeper.future_receiver() == ZERO_ADDRESS
 
     assert peg_keeper.min_asymmetry() == 2
 
 
-def test_update_access(peg_keeper, swap, add_initial_liquidity):
-    peg_keeper.update({"from": swap})
+def test_update_access(peg_keeper, peg_keeper_updater, add_initial_liquidity):
+    """Check that does not fail for the updater
+    (swap in case of template, anyone in case of pluggable)"""
+    peg_keeper.update({"from": peg_keeper_updater})
 
 
+@pytest.mark.template
 def test_update_no_access(peg_keeper, bob):
     with brownie.reverts("dev: callable only by the pool"):
         peg_keeper.update({"from": bob})
@@ -105,6 +109,7 @@ def test_revert_new_admin_without_commit(peg_keeper, admin):
     assert peg_keeper.admin_actions_deadline() == 0
 
 
+@pytest.mark.template
 def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
 
@@ -117,11 +122,13 @@ def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
     )
 
 
+@pytest.mark.template
 def test_commit_new_receiver_access(peg_keeper, alice):
     with brownie.reverts("dev: only admin"):
         peg_keeper.commit_new_receiver(alice, {"from": alice})
 
 
+@pytest.mark.template
 def test_apply_new_receiver(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
     chain.sleep(ADMIN_ACTIONS_DEADLINE)
@@ -131,6 +138,7 @@ def test_apply_new_receiver(peg_keeper, admin, alice):
     assert peg_keeper.future_receiver() == alice
 
 
+@pytest.mark.template
 @flaky
 def test_apply_new_receiver_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
@@ -139,11 +147,13 @@ def test_apply_new_receiver_deadline(peg_keeper, admin, alice):
         peg_keeper.apply_new_receiver({"from": admin})
 
 
+@pytest.mark.template
 def test_apply_new_receiver_no_active(peg_keeper, alice):
     with brownie.reverts("dev: no active action"):
         peg_keeper.apply_new_receiver({"from": alice})
 
 
+@pytest.mark.template
 def test_revert_new_receiver(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
     peg_keeper.revert_new_staff({"from": admin})
@@ -151,18 +161,21 @@ def test_revert_new_receiver(peg_keeper, admin, alice):
     assert peg_keeper.admin_actions_deadline() == 0
 
 
+@pytest.mark.template
 def test_revert_new_receiver_only_admin(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
     with brownie.reverts("dev: only admin"):
         peg_keeper.revert_new_staff({"from": alice})
 
 
+@pytest.mark.template
 def test_revert_new_receiver_without_commit(peg_keeper, admin):
     peg_keeper.revert_new_staff({"from": admin})
 
     assert peg_keeper.admin_actions_deadline() == 0
 
 
+@pytest.mark.template
 @pytest.mark.parametrize("action0", ["commit_new_admin", "commit_new_receiver"])
 @pytest.mark.parametrize("action1", ["commit_new_admin", "commit_new_receiver"])
 def test_commit_already_active(peg_keeper, admin, alice, action0, action1):
@@ -176,3 +189,11 @@ def test_commit_already_active(peg_keeper, admin, alice, action0, action1):
             peg_keeper.commit_new_admin(alice, {"from": admin})
         else:
             peg_keeper.commit_new_receiver(alice, {"from": admin})
+
+
+@pytest.mark.pluggable
+def test_commit_new_admin_already_active(peg_keeper, admin, alice):
+    peg_keeper.commit_new_admin(alice, {"from": admin})
+
+    with brownie.reverts("dev: active action"):
+        peg_keeper.commit_new_admin(alice, {"from": admin})

@@ -1,12 +1,15 @@
 import pytest
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "provide_token_to_peg_keeper",
-    "set_peg_keeper",
-    "mint_alice",
-    "approve_alice",
-)
+pytestmark = [
+    pytest.mark.usefixtures(
+        "add_initial_liquidity",
+        "provide_token_to_peg_keeper",
+        "set_peg_keeper",
+        "mint_alice",
+        "approve_alice",
+    ),
+    pytest.mark.template,
+]
 
 
 def test_exchange_peg_to_pegged(

@@ -1,11 +1,14 @@
 import pytest
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "set_peg_keeper",
-    "mint_alice",
-    "approve_alice",
-)
+pytestmark = [
+    pytest.mark.usefixtures(
+        "add_initial_liquidity",
+        "set_peg_keeper",
+        "mint_alice",
+        "approve_alice",
+    ),
+    pytest.mark.template,
+]
 
 
 def _balance_do_not_change(pool, peg, pegged, amounts, alice):

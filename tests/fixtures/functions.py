@@ -76,41 +76,57 @@ def set_fees(chain, swap, alice):
 
 
 @pytest.fixture(scope="module")
-def provide_token_to_peg_keeper(swap, peg, alice, peg_keeper, initial_amounts):
+def provide_token_to_peg_keeper(
+    swap,
+    peg,
+    alice,
+    peg_keeper_updater,
+    peg_keeper,
+    set_peg_keeper_func,
+    initial_amounts,
+):
     """Add 5x of peg, so Peg Keeper mints x, then remove 4x, so pool is balanced."""
     assert swap.balances(0) == swap.balances(1)
-    amount = initial_amounts[0] * 5
+    amount = initial_amounts[1] * 5
     peg._mint_for_testing(alice, amount)
     peg.approve(swap, amount, {"from": alice})
 
-    swap.add_liquidity([amount, 0], 0, {"from": alice})
-    if swap.peg_keeper() == ZERO_ADDRESS:
-        swap.set_peg_keeper(peg_keeper, {"from": alice})
-        peg_keeper.update({"from": swap})
-        swap.set_peg_keeper(ZERO_ADDRESS, {"from": alice})
+    swap.add_liquidity(
+        [0, amount],
+        0,
+        {"from": alice},
+    )
 
-    remove_amount = swap.balances(0) - swap.balances(1)
-    swap.remove_liquidity_imbalance([remove_amount, 0], 2 ** 256 - 1, {"from": alice})
+    set_peg_keeper_func()
+    peg_keeper.update({"from": peg_keeper_updater})
+    set_peg_keeper_func(ZERO_ADDRESS)
+
+    remove_amount = swap.balances(1) - swap.balances(0)
+    swap.remove_liquidity_imbalance(
+        [0, remove_amount],
+        2 ** 256 - 1,
+        {"from": alice},
+    )
 
     assert swap.balances(0) == swap.balances(1)
     chain.sleep(15 * 60)
 
 
 @pytest.fixture(scope="module")
-def balance_change_after_provide(swap, peg, pegged):
+def balance_change_after_provide(swap, coins):
     def _inner(diff: int):
         # diff should be positive
-        assert swap.balances(0) == swap.balances(1) + (diff - diff // 5)
-        assert peg.balanceOf(swap) == pegged.balanceOf(swap) + (diff - diff // 5)
+        assert swap.balances(0) + (diff - diff // 5) == swap.balances(1)
+        assert coins[0].balanceOf(swap) + (diff - diff // 5) == coins[1].balanceOf(swap)
 
     return _inner
 
 
 @pytest.fixture(scope="module")
-def balance_change_after_withdraw(swap, peg, pegged):
+def balance_change_after_withdraw(swap, coins):
     def _inner(diff: int):
         # diff should be positive
-        assert swap.balances(0) == swap.balances(1) - (diff - diff // 5)
-        assert peg.balanceOf(swap) == pegged.balanceOf(swap) - (diff - diff // 5)
+        assert swap.balances(0) - (diff - diff // 5) == swap.balances(1)
+        assert coins[0].balanceOf(swap) - (diff - diff // 5) == coins[1].balanceOf(swap)
 
     return _inner

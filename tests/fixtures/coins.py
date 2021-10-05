@@ -13,7 +13,7 @@ def pegged(ERC20Pegged, alice):
 
 @pytest.fixture(scope="module")
 def coins(peg, pegged):
-    yield [peg, pegged]
+    yield [pegged, peg]
 
 
 @pytest.fixture(scope="module")

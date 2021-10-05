@@ -2,13 +2,16 @@ import pytest
 from brownie import chain
 from brownie.test import strategy
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "provide_token_to_peg_keeper",
-    "set_peg_keeper",
-    "mint_alice",
-    "approve_alice",
-)
+pytestmark = [
+    pytest.mark.usefixtures(
+        "add_initial_liquidity",
+        "provide_token_to_peg_keeper",
+        "set_peg_keeper",
+        "mint_alice",
+        "approve_alice",
+    ),
+    pytest.mark.template,
+]
 
 
 class StateMachine:
@@ -24,7 +27,6 @@ class StateMachine:
         cls,
         alice,
         swap,
-        pool_token,
         pegged,
         peg_keeper,
         decimals,
@@ -33,7 +35,6 @@ class StateMachine:
     ):
         cls.alice = alice
         cls.swap = swap
-        cls.pool_token = pool_token
         cls.pegged = pegged
         cls.peg_keeper = peg_keeper
         cls.decimals = decimals
@@ -66,7 +67,7 @@ class StateMachine:
         """
         Remove liquidity from the pool in only one coin.
         """
-        token_amount = int(10 ** self.decimals[st_idx] * st_pct)
+        token_amount = int(10 ** 18 * st_pct)
         self.swap.remove_liquidity_one_coin(
             token_amount, st_idx, 0, {"from": self.alice}
         )
@@ -102,12 +103,12 @@ class StateMachine:
         Withdraw profit from Peg Keeper.
         """
         profit = self.peg_keeper.calc_profit()
-        receiver_balance = self.pool_token.balanceOf(self.receiver)
+        receiver_balance = self.swap.balanceOf(self.receiver)
 
         returned = self.peg_keeper.withdraw_profit().return_value
 
         assert profit == returned
-        assert receiver_balance + profit == self.pool_token.balanceOf(self.receiver)
+        assert receiver_balance + profit == self.swap.balanceOf(self.receiver)
 
     def invariant_withdraw_profit(self):
         """
@@ -138,7 +139,6 @@ def test_withdraw_profit(
     add_initial_liquidity,
     state_machine,
     swap,
-    pool_token,
     pegged,
     decimals,
     set_fees,
@@ -155,7 +155,6 @@ def test_withdraw_profit(
         StateMachine,
         alice,
         swap,
-        pool_token,
         pegged,
         peg_keeper,
         decimals,

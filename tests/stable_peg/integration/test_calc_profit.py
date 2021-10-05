@@ -2,13 +2,16 @@ import pytest
 from brownie import chain
 from brownie.test import strategy
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "provide_token_to_peg_keeper",
-    "set_peg_keeper",
-    "mint_alice",
-    "approve_alice",
-)
+pytestmark = [
+    pytest.mark.usefixtures(
+        "add_initial_liquidity",
+        "provide_token_to_peg_keeper",
+        "set_peg_keeper",
+        "mint_alice",
+        "approve_alice",
+    ),
+    pytest.mark.template,
+]
 
 
 class StateMachine:
@@ -20,10 +23,9 @@ class StateMachine:
     st_idx = strategy("int", min_value=0, max_value=1)
     st_pct = strategy("decimal", min_value="0.5", max_value="10000", places=2)
 
-    def __init__(cls, alice, swap, pool_token, peg_keeper, decimals):
+    def __init__(cls, alice, swap, peg_keeper, decimals):
         cls.alice = alice
         cls.swap = swap
-        cls.pool_token = pool_token
         cls.peg_keeper = peg_keeper
         cls.decimals = decimals
         cls.profit = 0
@@ -53,7 +55,7 @@ class StateMachine:
         """
         Remove liquidity from the pool in only one coin.
         """
-        token_amount = int(10 ** self.decimals[st_idx] * st_pct)
+        token_amount = int(10 ** 18 * st_pct)
         self.swap.remove_liquidity_one_coin(
             token_amount, st_idx, 0, {"from": self.alice}
         )
@@ -99,7 +101,7 @@ class StateMachine:
         profit = self.peg_keeper.calc_profit()
         virtual_price = self.swap.get_virtual_price()
         aim_profit = (
-            self.pool_token.balanceOf(self.peg_keeper)
+            self.swap.balanceOf(self.peg_keeper)
             - self.peg_keeper.debt() * 10 ** 18 // virtual_price
         )
         assert aim_profit >= profit  # Never take more than real profit
@@ -117,7 +119,6 @@ def test_profit_increases(
     add_initial_liquidity,
     state_machine,
     swap,
-    pool_token,
     alice,
     decimals,
     set_fees,
@@ -131,7 +132,6 @@ def test_profit_increases(
         StateMachine,
         alice,
         swap,
-        pool_token,
         peg_keeper,
         decimals,
         settings={"max_examples": 20, "stateful_step_count": 40},

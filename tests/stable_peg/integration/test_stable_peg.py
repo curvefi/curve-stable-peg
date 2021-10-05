@@ -11,9 +11,6 @@ pytestmark = pytest.mark.usefixtures(
 )
 
 
-MIN_COIN = 10 ** 6
-
-
 class StateMachine:
     """
     Stateful test that performs a series of deposits, swaps and withdrawals
@@ -23,12 +20,25 @@ class StateMachine:
     st_idx = strategy("int", min_value=0, max_value=1)
     st_pct = strategy("decimal", min_value="0.5", max_value="10000", places=2)
 
-    def __init__(cls, alice, swap, decimals, min_asymmetry):
+    def __init__(
+        cls,
+        alice,
+        swap,
+        decimals,
+        min_asymmetry,
+        peg_keeper,
+        peg_keeper_updater,
+        need_manual_update,
+    ):
         cls.alice = alice
         cls.swap = swap
         cls.decimals = decimals
         cls.min_asymmetry = min_asymmetry
         cls.balances = [swap.balances(0), swap.balances(1)]
+
+        cls.peg_keeper = peg_keeper
+        cls.peg_keeper_updater = peg_keeper_updater
+        cls.need_manual_update = need_manual_update
 
     def _update_balances(self, amounts, remove: bool = False):
         if remove:
@@ -67,7 +77,7 @@ class StateMachine:
         Remove liquidity from the pool in only one coin.
         """
         amounts = [0, 0]
-        token_amount = int(10 ** self.decimals[st_idx] * st_pct)
+        token_amount = int(10 ** 18 * st_pct)
         amounts[st_idx] = self.swap.remove_liquidity_one_coin(
             token_amount, st_idx, 0, {"from": self.alice}
         ).return_value
@@ -111,6 +121,8 @@ class StateMachine:
         """
         Verify that Peg Keeper decreased diff of balances by 1/5.
         """
+        if self.need_manual_update:
+            self.peg_keeper.update({"from": self.peg_keeper_updater})
         diff = self.swap.balances(0) - self.swap.balances(1)
         last_diff = self.balances[0] - self.balances[1]
         if self._is_balanced():
@@ -138,6 +150,8 @@ def test_always_peg(
     decimals,
     set_fees,
     peg_keeper,
+    peg_keeper_updater,
+    peg_keeper_type,
     admin,
     min_asymmetry,
 ):
@@ -151,5 +165,8 @@ def test_always_peg(
         swap,
         decimals,
         min_asymmetry,
+        peg_keeper,
+        peg_keeper_updater,
+        peg_keeper_type != "template",
         settings={"max_examples": 20, "stateful_step_count": 40},
     )
