@@ -126,7 +126,7 @@ def _calc_profit() -> uint256:
 
 
 @external
-def update() -> bool:
+def update(_profit_receiver: address = msg.sender) -> bool:
     """
     @notice Mint or burn coins from the pool to stabilize it
     @return True if peg was maintained, otherwise False
@@ -152,7 +152,7 @@ def update() -> bool:
 
     # Send generated profit
     lp_amount: uint256 = self._calc_profit()
-    CurvePool(self.pool).transfer(msg.sender, lp_amount)
+    CurvePool(self.pool).transfer(_profit_receiver, lp_amount)
 
     return True
 
