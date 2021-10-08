@@ -1,11 +1,14 @@
 import pytest
 from brownie.test import given, strategy
 
-pytestmark = pytest.mark.usefixtures(
-    "add_initial_liquidity",
-    "provide_token_to_peg_keeper",
-    "mint_alice",
-)
+pytestmark = [
+    pytest.mark.usefixtures(
+        "add_initial_liquidity",
+        "provide_token_to_peg_keeper",
+        "mint_alice",
+    ),
+    pytest.mark.template,
+]
 
 
 @pytest.fixture(scope="module")
@@ -25,28 +28,26 @@ def make_profit(swap, peg, pegged, initial_amounts, alice, set_fees):
 
 
 def test_initial_debt(peg_keeper, initial_amounts):
-    assert peg_keeper.debt() == initial_amounts[1]
+    assert peg_keeper.debt() == initial_amounts[0]
 
 
-def test_calc_initial_profit(peg_keeper, swap, pool_token):
+def test_calc_initial_profit(peg_keeper, swap):
     """Peg Keeper always generate profit, including first mint."""
     debt = peg_keeper.debt()
-    assert debt / swap.get_virtual_price() < pool_token.balanceOf(peg_keeper)
-    aim_profit = (
-        pool_token.balanceOf(peg_keeper) - debt * 10 ** 18 / swap.get_virtual_price()
-    )
+    assert debt / swap.get_virtual_price() < swap.balanceOf(peg_keeper)
+    aim_profit = swap.balanceOf(peg_keeper) - debt * 10 ** 18 / swap.get_virtual_price()
     assert aim_profit > peg_keeper.calc_profit() > 0
 
 
 @given(donate_fee=strategy("int", min_value=1, max_value=10 ** 20))
-def test_calc_profit(peg_keeper, swap, pool_token, make_profit, donate_fee):
+def test_calc_profit(peg_keeper, swap, make_profit, donate_fee):
     debt = peg_keeper.debt()
 
     make_profit(donate_fee)
 
     profit = peg_keeper.calc_profit()
     virtual_price = swap.get_virtual_price()
-    aim_profit = pool_token.balanceOf(peg_keeper) - debt * 10 ** 18 // virtual_price
+    aim_profit = swap.balanceOf(peg_keeper) - debt * 10 ** 18 // virtual_price
     assert aim_profit >= profit  # Never take more than real profit
     assert aim_profit - profit < 1e18  # Error less than 1 LP Token
 
@@ -55,13 +56,13 @@ def test_calc_profit(peg_keeper, swap, pool_token, make_profit, donate_fee):
 def test_withdraw_profit(
     peg_keeper,
     swap,
-    pool_token,
     pegged,
     initial_amounts,
     make_profit,
     admin,
     receiver,
     alice,
+    peg_keeper_updater,
     balance_change_after_withdraw,
     donate_fee,
 ):
@@ -71,16 +72,16 @@ def test_withdraw_profit(
     profit = peg_keeper.calc_profit()
     returned = peg_keeper.withdraw_profit({"from": admin}).return_value
     assert profit == returned
-    assert profit == pool_token.balanceOf(receiver)
+    assert profit == swap.balanceOf(receiver)
 
-    amount = 5 * initial_amounts[1] + swap.balances(0) - swap.balances(1)
+    amount = 5 * initial_amounts[0] + swap.balances(1) - swap.balances(0)
     pegged._mint_for_testing(alice, amount, {"from": alice})
     pegged.approve(swap, amount, {"from": alice})
-    swap.add_liquidity([0, amount], 0, {"from": alice})
+    swap.add_liquidity([amount, 0], 0, {"from": alice})
 
     swap.set_peg_keeper(peg_keeper, {"from": alice})
-    assert peg_keeper.update({"from": swap}).return_value
-    balance_change_after_withdraw(5 * initial_amounts[1])
+    assert peg_keeper.update({"from": peg_keeper_updater}).return_value
+    balance_change_after_withdraw(5 * initial_amounts[0])
 
 
 def test_0_after_withdraw(peg_keeper, admin):
