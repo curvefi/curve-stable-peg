@@ -65,6 +65,9 @@ def __init__(_pool: address, _min_asymmetry: uint256):
     @notice Contract constructor
     @param _pool Contract pool address
     """
+    assert 1 < _min_asymmetry  # dev: bad asymmetry value
+    assert _min_asymmetry < ASYMMETRY_PRECISION  # dev: bad asymmetry value
+
     self.pool = _pool
     self.pegged = CurvePool(_pool).coins(0)
     ERC20Pegged(self.pegged).approve(_pool, MAX_UINT256)
@@ -190,8 +193,10 @@ def apply_new_admin():
     @notice Apply new admin of the Peg Keeper
     @dev Should be executed from new admin
     """
+    assert msg.sender == self.future_admin # dev: only new admin
     assert block.timestamp >= self.admin_actions_deadline  # dev: insufficient time
     assert self.admin_actions_deadline != 0  # dev: no active action
+
 
     self.admin = self.future_admin
     self.admin_actions_deadline = 0
@@ -199,6 +204,10 @@ def apply_new_admin():
 
 @external
 def revert_new_staff():
+    """
+    @notice Revert new admin of the Peg Keeper
+    @dev Should be executed from admin
+    """
     assert msg.sender == self.admin  # dev: only admin
 
     self.admin_actions_deadline = 0

@@ -75,6 +75,15 @@ def test_apply_new_admin(peg_keeper, admin, alice):
 
     assert peg_keeper.admin() == alice
     assert peg_keeper.future_admin() == alice
+    assert peg_keeper.admin_actions_deadline() == 0
+
+
+def test_apply_new_admin_only_new_admin(peg_keeper, admin, alice, bob):
+    peg_keeper.commit_new_admin(alice, {"from": admin})
+    chain.sleep(ADMIN_ACTIONS_DEADLINE)
+
+    with brownie.reverts("dev: only new admin"):
+        peg_keeper.apply_new_admin({"from": bob})
 
 
 @flaky
@@ -85,7 +94,11 @@ def test_apply_new_admin_deadline(peg_keeper, admin, alice):
         peg_keeper.apply_new_admin({"from": alice})
 
 
-def test_apply_new_admin_no_active(peg_keeper, alice):
+def test_apply_new_admin_no_active(peg_keeper, admin, alice):
+    peg_keeper.commit_new_admin(alice, {"from": admin})
+    chain.sleep(ADMIN_ACTIONS_DEADLINE)
+    peg_keeper.apply_new_admin({"from": alice})
+
     with brownie.reverts("dev: no active action"):
         peg_keeper.apply_new_admin({"from": alice})
 
