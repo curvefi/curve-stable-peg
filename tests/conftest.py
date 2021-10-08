@@ -11,12 +11,26 @@ pytest_plugins = [
 ]
 
 
+# Metadata of each peg keeper
+_contracts = {
+    "template": "PegKeeperTemplate",
+    "pluggable-optimized": "PegKeeperPluggableOptimized",
+}
+_types = {"template": "template", "pluggable-optimized": "pluggable-optimized"}
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--type",
         action="store",
         default="template,pluggable-optimized",
         help="comma-separated list of peg keeper types to test against",
+    )
+    parser.addoption(
+        "--contracts",
+        action="store",
+        default="",
+        help="comma-separated list of peg keeper name to test against",
     )
     parser.addoption(
         "--peg-keeper",
@@ -103,25 +117,31 @@ def pytest_ignore_collect(path, config):
 
 
 def pytest_generate_tests(metafunc):
-    if "peg_keeper_type" in metafunc.fixturenames:  # remove?
-        cli_options = metafunc.config.getoption("type").split(",")
-        metafunc.parametrize(
-            "peg_keeper_type",
-            cli_options,
-            indirect=True,
-            ids=[f"(PegKeeperType={i})" for i in cli_options],
-            scope="session",
-        )
+    cli_options = metafunc.config.getoption("contracts").split(",")
+    if cli_options[0] == "":
+        cli_options = _contracts.keys()
+    metafunc.parametrize(
+        "peg_keeper_name",
+        cli_options,
+        indirect=True,
+        ids=[f"(PegKeeper={i})" for i in cli_options],
+        scope="session",
+    )
 
 
 def pytest_collection_modifyitems(config, items):
     project = get_loaded_projects()[0]
+    peg_types = config.getoption("type").split(",")
 
     for item in items.copy():
         path = Path(item.fspath).relative_to(project._path)
         path_parts = path.parts[1:-1]
         params = item.callspec.params
-        peg_type = params["peg_keeper_type"]
+        peg_type = _types[params["peg_keeper_name"]]
+
+        if peg_type not in peg_types:
+            items.remove(item)
+            continue
 
         # Temporarily skip template tests
         if peg_type == "template":
@@ -150,8 +170,13 @@ def isolation_setup(fn_isolation):
 
 
 @pytest.fixture(scope="session")
-def peg_keeper_type(request):
+def peg_keeper_name(request):
     return request.param
+
+
+@pytest.fixture(scope="session")
+def peg_keeper_type(peg_keeper_name):
+    return _types[peg_keeper_name]
 
 
 @pytest.fixture(scope="module")
@@ -167,15 +192,10 @@ def swap(StableSwap, peg_keeper_type, coins, alice):
     )
 
 
-def _get_peg_keeper(peg_keeper_type):
-    if peg_keeper_type == "pluggable-optimized":
-        project = get_loaded_projects()[0]
-        return project.PegKeeperPluggableOptimized
-
-
 @pytest.fixture(scope="module")
-def peg_keeper(peg_keeper_type, swap, admin, receiver, pegged, alice):
-    peg_keeper = _get_peg_keeper(peg_keeper_type)
+def peg_keeper(peg_keeper_name, swap, admin, receiver, pegged, alice):
+    project = get_loaded_projects()[0]
+    peg_keeper = getattr(project, _contracts[peg_keeper_name])
 
     abi = next(i["inputs"] for i in peg_keeper.abi if i["type"] == "constructor")
     args = {
