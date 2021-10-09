@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import pytest
-from brownie import ZERO_ADDRESS
+from brownie import ZERO_ADDRESS, Contract
+from brownie._config import CONFIG
 from brownie.project.main import get_loaded_projects
 
 pytest_plugins = [
@@ -15,6 +16,7 @@ pytest_plugins = [
 _contracts = {
     "template": "PegKeeperTemplate",
     "pluggable-optimized": "PegKeeperPluggableOptimized",
+    "mim": "PegKeeperMim",
 }
 _types = {"template": "template", "pluggable-optimized": "pluggable-optimized"}
 
@@ -23,7 +25,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--type",
         action="store",
-        default="template,pluggable-optimized",
+        default="template,pluggable-optimized,mim",
         help="comma-separated list of peg keeper types to test against",
     )
     parser.addoption(
@@ -65,6 +67,10 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "pluggable: pluggable-specific tests",
+    )
+    config.addinivalue_line(
+        "markers",
+        "mim: mim-specific tests",
     )
 
 
@@ -180,20 +186,23 @@ def peg_keeper_type(peg_keeper_name):
 
 
 @pytest.fixture(scope="module")
-def swap(StableSwap, peg_keeper_type, coins, alice):
-    yield StableSwap.deploy(
-        "Test",  # name
-        "TEST",  # symbol
-        coins + [ZERO_ADDRESS] * 2,  # coins[4]
-        [10 ** 18] * 4,  # rate_multipliers[4]
-        200 * 2,  # A
-        0,  # fee
-        {"from": alice},
-    )
+def swap(StableSwap, peg_keeper_type, coins, alice, is_forked):
+    if is_forked:
+        yield Contract("0x5a6A4D54456819380173272A5E8E9B9904BdF41B")  # MIM Pool Swap Address
+    else:
+        yield StableSwap.deploy(
+            "Test",  # name
+            "TEST",  # symbol
+            coins + [ZERO_ADDRESS] * 2,  # coins[4]
+            [10 ** 18] * 4,  # rate_multipliers[4]
+            200 * 2,  # A
+            0,  # fee
+            {"from": alice},
+        )
 
 
 @pytest.fixture(scope="module")
-def peg_keeper(peg_keeper_name, swap, admin, receiver, pegged, alice):
+def peg_keeper(peg_keeper_name, swap, admin, receiver, pegged, alice, is_forked):
     project = get_loaded_projects()[0]
     peg_keeper = getattr(project, _contracts[peg_keeper_name])
 
@@ -205,7 +214,10 @@ def peg_keeper(peg_keeper_name, swap, admin, receiver, pegged, alice):
     }
 
     contract = peg_keeper.deploy(*[args[i["name"]] for i in abi], {"from": admin})
-    pegged.add_minter(contract, {"from": alice})
+
+    if not is_forked:
+        pegged.add_minter(contract, {"from": alice})
+
     yield contract
 
 
@@ -225,5 +237,10 @@ def set_peg_keeper(set_peg_keeper_func):
 
 @pytest.fixture(scope="module")
 def peg_keeper_updater(peg_keeper_type, charlie, swap):
-    if peg_keeper_type == "pluggable-optimized":
+    if peg_keeper_type != "template":
         return charlie
+
+
+@pytest.fixture(scope="session")
+def is_forked():
+    yield "fork" in CONFIG.active_network["id"]
