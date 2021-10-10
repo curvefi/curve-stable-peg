@@ -27,7 +27,7 @@ event Withdraw:
 
 
 event Profit:
-    amount: uint256
+    lp_amount: uint256
 
 
 event WithdrawPegged:
@@ -140,6 +140,16 @@ def _calc_profit() -> uint256:
 
 
 @external
+@view
+def calc_profit() -> uint256:
+    """
+    @notice Calculate generated profit in LP tokens
+    @return Amount of generated profit
+    """
+    return self._calc_profit()
+
+
+@external
 def update() -> bool:
     """
     @notice Provide or withdraw coins from the pool to stabilize it
@@ -174,6 +184,7 @@ def set_new_min_asymmetry(_new_min_asymmetry: uint256):
     self.min_asymmetry = _new_min_asymmetry
 
 
+# Seems like _receiver must be specifying in init()
 @external
 def withdraw_pegged(_amount: uint256, _receiver: address) -> bool:
     """
