@@ -210,3 +210,19 @@ def test_commit_new_admin_already_active(peg_keeper, admin, alice):
 
     with brownie.reverts("dev: active action"):
         peg_keeper.commit_new_admin(alice, {"from": admin})
+
+
+@pytest.mark.mim
+@pytest.mark.parametrize("action0", ["commit_new_admin", "commit_new_receiver"])
+@pytest.mark.parametrize("action1", ["commit_new_admin", "commit_new_receiver"])
+def test_commit_already_active(peg_keeper, admin, alice, action0, action1):
+    if action0 == "commit_new_admin":
+        peg_keeper.commit_new_admin(alice, {"from": admin})
+    else:
+        peg_keeper.commit_new_receiver(alice, {"from": admin})
+
+    with brownie.reverts("dev: active action"):
+        if action1 == "commit_new_admin":
+            peg_keeper.commit_new_admin(alice, {"from": admin})
+        else:
+            peg_keeper.commit_new_receiver(alice, {"from": admin})

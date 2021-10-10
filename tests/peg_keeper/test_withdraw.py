@@ -4,6 +4,7 @@ from brownie.test import given, strategy
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
+    "provide_pegged_to_peg_keeper",
     "provide_token_to_peg_keeper",
     "mint_alice",
     "approve_alice",
