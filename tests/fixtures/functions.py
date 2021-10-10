@@ -134,7 +134,12 @@ def balance_change_after_withdraw(swap, coins):
 
 # TODO run only for MIM tests
 @pytest.fixture(scope="module")
-def provide_pegged_to_peg_keeper(peg_keeper, pegged, base_amount, alice):
+def provide_pegged_to_peg_keeper(
+    peg_keeper, pegged, base_amount, alice, peg_keeper_type
+):
+    if peg_keeper_type != "mim":
+        return
+
     amount = base_amount * 50 * 10 ** pegged.decimals()
 
     pegged._mint_for_testing(alice, amount)
