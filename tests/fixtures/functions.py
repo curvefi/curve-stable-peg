@@ -139,3 +139,18 @@ def provide_pegged_to_peg_keeper(peg_keeper, pegged, base_amount, alice):
 
     pegged._mint_for_testing(alice, amount)
     pegged.transfer(peg_keeper, amount, {"from": alice})
+
+
+@pytest.fixture(scope="module")
+def little_amount():
+    yield 100
+
+
+@pytest.fixture(scope="function")
+def provide_little_amount_of_pegged_to_peg_keeper(
+    peg_keeper, pegged, little_amount, alice
+):
+    amount = little_amount * 10 ** pegged.decimals()
+
+    pegged._mint_for_testing(alice, amount)
+    pegged.transfer(peg_keeper, amount, {"from": alice})
