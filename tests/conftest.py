@@ -18,7 +18,11 @@ _contracts = {
     "pluggable-optimized": "PegKeeperPluggableOptimized",
     "mim": "PegKeeperMim",
 }
-_types = {"template": "template", "pluggable-optimized": "pluggable-optimized", "mim": "mim"}
+_types = {
+    "template": "template",
+    "pluggable-optimized": "pluggable-optimized",
+    "mim": "mim",
+}
 
 
 def pytest_addoption(parser):
@@ -194,7 +198,9 @@ def peg_keeper_type(peg_keeper_name):
 @pytest.fixture(scope="module")
 def swap(StableSwap, peg_keeper_type, coins, alice, is_forked):
     if is_forked:
-        yield Contract("0x5a6A4D54456819380173272A5E8E9B9904BdF41B")  # MIM Pool Swap Address
+        yield Contract(
+            "0x5a6A4D54456819380173272A5E8E9B9904BdF41B"
+        )  # MIM Pool Swap Address
     else:
         yield StableSwap.deploy(
             "Test",  # name

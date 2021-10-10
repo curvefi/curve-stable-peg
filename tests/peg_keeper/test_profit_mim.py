@@ -13,7 +13,9 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def make_profit(swap, peg_keeper, peg, pegged, initial_amounts, alice,  peg_keeper_updater, set_fees):
+def make_profit(
+    swap, peg_keeper, peg, pegged, initial_amounts, alice, peg_keeper_updater, set_fees
+):
     def _inner(amount):
         """Amount to add to balances."""
         set_fees(1 * 10 ** 9, 0)

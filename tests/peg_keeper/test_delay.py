@@ -31,8 +31,6 @@ def _prepare_for_withdraw(swap, pegged, bob) -> int:
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
 def test_update_delay(peg_keeper, swap, peg, pegged, bob, peg_keeper_updater, method):
-    print('BALANCE')
-    print(pegged.balanceOf(peg_keeper))
     if method == "provide":
         _prepare_for_provide(swap, peg, bob)
     else:

@@ -2,7 +2,6 @@ import pytest
 from brownie import Contract
 
 
-
 @pytest.fixture(scope="module")
 def peg(ERC20Mock, alice, is_forked):
     if is_forked:
