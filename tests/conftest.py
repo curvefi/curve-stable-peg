@@ -18,7 +18,7 @@ _contracts = {
     "pluggable-optimized": "PegKeeperPluggableOptimized",
     "mim": "PegKeeperMim",
 }
-_types = {"template": "template", "pluggable-optimized": "pluggable-optimized"}
+_types = {"template": "template", "pluggable-optimized": "pluggable-optimized", "mim": "mim"}
 
 
 def pytest_addoption(parser):
@@ -161,8 +161,14 @@ def pytest_collection_modifyitems(config, items):
                 continue
 
         # Skip pluggable-specific tests for non pluggable
-        if peg_type != "pluggable-optimized":
+        if peg_type == "template":
             if item.get_closest_marker(name="pluggable"):
+                items.remove(item)
+                continue
+
+        # Skip mim-specific tests for non mim
+        if peg_type != "mim":
+            if item.get_closest_marker(name="mim"):
                 items.remove(item)
                 continue
 
