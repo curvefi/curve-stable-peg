@@ -216,7 +216,7 @@ def withdraw_profit() -> uint256:
     @return Amount of LP Token received
     """
     lp_amount: uint256 = self._calc_profit()
-    PoolToken(self.pool_token).transfer(self.receiver, lp_amount)
+    CurvePool(self.pool).transfer(self.receiver, lp_amount)
 
     log Profit(lp_amount)
 
