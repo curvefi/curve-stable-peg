@@ -138,10 +138,10 @@ def _calc_profit() -> uint256:
     virtual_price: uint256 = CurvePool(self.pool).get_virtual_price()
     lp_debt: uint256 = self.debt * PRECISION / virtual_price
 
-    if lp_balance <= lp_debt + PROFIT_THRESHOLD:
+    if lp_balance <= lp_debt + self.profit + PROFIT_THRESHOLD:
         return 0
     else:
-        return lp_balance - lp_debt - PROFIT_THRESHOLD
+        return lp_balance - lp_debt - self.profit - PROFIT_THRESHOLD
 
 
 @external
