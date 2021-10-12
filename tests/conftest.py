@@ -60,6 +60,12 @@ def pytest_addoption(parser):
     parser.addoption(
         "--integration", action="store_true", help="only run integration tests"
     )
+    parser.addoption(
+        "--forked-tests",
+        action="store_true",
+        default=False,
+        help="only run forked tests",
+    )
 
 
 def pytest_configure(config):
@@ -104,8 +110,12 @@ def pytest_ignore_collect(path, config):
         return None
 
     # always allow forked tests
-    if path_parts[-1] == "forked":
+    if "forked" in path_parts:
         return None
+
+    # Skip other tests when forked
+    if config.getoption("forked_tests"):
+        return True
 
     run_peg_keeper, run_stable_swap, run_stable_peg = _get_test_suits_flags(config)
     if path_parts[0] == "peg_keeper" and not run_peg_keeper:
