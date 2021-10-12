@@ -20,8 +20,8 @@ _contracts = {
 }
 _types = {
     "template": "template",
-    "pluggable-optimized": "pluggable-optimized",
-    "mim": "mim",
+    "pluggable-optimized": "pluggable",
+    "mim": "pluggable",
 }
 
 
@@ -29,7 +29,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--type",
         action="store",
-        default="template,pluggable-optimized,mim",
+        default="template,pluggable",
         help="comma-separated list of peg keeper types to test against",
     )
     parser.addoption(
@@ -78,10 +78,6 @@ def pytest_configure(config):
         "markers",
         "pluggable: pluggable-specific tests",
     )
-    config.addinivalue_line(
-        "markers",
-        "mim: mim-specific tests",
-    )
 
 
 def _get_test_suits_flags(config) -> (bool, bool, bool):
@@ -109,12 +105,12 @@ def pytest_ignore_collect(path, config):
     if path_parts[0] == "fixtures":
         return None
 
-    # always allow forked tests
-    if "forked" in path_parts:
+    # Run forked tests only when forked
+    if config.getoption("forked_tests") and "forked" in path_parts:
         return None
 
-    # Skip other tests when forked
-    if config.getoption("forked_tests"):
+    # Skip other tests when forked or forked tests when not
+    if config.getoption("forked_tests") or "forked" in path_parts:
         return True
 
     run_peg_keeper, run_stable_swap, run_stable_peg = _get_test_suits_flags(config)
@@ -157,7 +153,8 @@ def pytest_collection_modifyitems(config, items):
         path = Path(item.fspath).relative_to(project._path)
         path_parts = path.parts[1:-1]
         params = item.callspec.params
-        peg_type = _types[params["peg_keeper_name"]]
+        peg_keeper_name = params["peg_keeper_name"]
+        peg_type = _types[peg_keeper_name]
 
         if peg_type not in peg_types:
             items.remove(item)
@@ -180,9 +177,8 @@ def pytest_collection_modifyitems(config, items):
                 items.remove(item)
                 continue
 
-        # Skip mim-specific tests for non mim
-        if peg_type != "mim":
-            if item.get_closest_marker(name="mim"):
+        if peg_keeper_name != "mim":
+            if "test_mim" in path_parts:
                 items.remove(item)
                 continue
 
@@ -193,6 +189,11 @@ def pytest_collection_modifyitems(config, items):
 @pytest.fixture(autouse=True)
 def isolation_setup(fn_isolation):
     pass
+
+
+@pytest.fixture(scope="session")
+def is_forked():
+    yield "fork" in CONFIG.active_network["id"]
 
 
 @pytest.fixture(scope="session")
@@ -224,7 +225,9 @@ def swap(StableSwap, peg_keeper_type, coins, alice, is_forked):
 
 
 @pytest.fixture(scope="module")
-def peg_keeper(peg_keeper_name, swap, admin, receiver, pegged, alice, is_forked):
+def peg_keeper(
+    peg_keeper_name, swap, admin, receiver, pegged, alice, initial_amounts, is_forked
+):
     project = get_loaded_projects()[0]
     peg_keeper = getattr(project, _contracts[peg_keeper_name])
 
@@ -233,12 +236,16 @@ def peg_keeper(peg_keeper_name, swap, admin, receiver, pegged, alice, is_forked)
         "_pool": swap,
         "_receiver": receiver,
         "_min_asymmetry": 2,
+        "_callers_part": 10 ** 5,
     }
 
     contract = peg_keeper.deploy(*[args[i["name"]] for i in abi], {"from": admin})
 
     if not is_forked:
         pegged.add_minter(contract, {"from": alice})
+
+    if peg_keeper_name == "mim":
+        pegged._mint_for_testing(contract, 10 * initial_amounts[0], {"from": alice})
 
     yield contract
 
@@ -261,8 +268,3 @@ def set_peg_keeper(set_peg_keeper_func):
 def peg_keeper_updater(peg_keeper_type, charlie, swap):
     if peg_keeper_type != "template":
         return charlie
-
-
-@pytest.fixture(scope="session")
-def is_forked():
-    yield "fork" in CONFIG.active_network["id"]

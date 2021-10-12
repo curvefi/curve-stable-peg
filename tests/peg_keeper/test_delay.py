@@ -4,7 +4,6 @@ from flaky import flaky
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
-    "provide_pegged_to_peg_keeper",
     "provide_token_to_peg_keeper",
     "set_peg_keeper",
     "mint_bob",

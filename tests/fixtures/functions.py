@@ -130,32 +130,3 @@ def balance_change_after_withdraw(swap, coins):
         assert coins[0].balanceOf(swap) - (diff - diff // 5) == coins[1].balanceOf(swap)
 
     return _inner
-
-
-# TODO run only for MIM tests
-@pytest.fixture(scope="module")
-def provide_pegged_to_peg_keeper(
-    peg_keeper, pegged, base_amount, alice, peg_keeper_type
-):
-    if peg_keeper_type != "mim":
-        return
-
-    amount = base_amount * 50 * 10 ** pegged.decimals()
-
-    pegged._mint_for_testing(alice, amount)
-    pegged.transfer(peg_keeper, amount, {"from": alice})
-
-
-@pytest.fixture(scope="module")
-def little_amount():
-    yield 100
-
-
-@pytest.fixture(scope="function")
-def provide_little_amount_of_pegged_to_peg_keeper(
-    peg_keeper, pegged, little_amount, alice
-):
-    amount = little_amount * 10 ** pegged.decimals()
-
-    pegged._mint_for_testing(alice, amount)
-    pegged.transfer(peg_keeper, amount, {"from": alice})

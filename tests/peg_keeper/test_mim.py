@@ -7,6 +7,23 @@ pytestmark = pytest.mark.usefixtures(
 )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def remove_pegged_from_peg_keeper(pegged, peg_keeper):
+    balance = pegged.balanceOf(peg_keeper)
+    pegged.burn(balance, {"from": peg_keeper})
+
+
+@pytest.fixture(scope="module")
+def little_amount():
+    yield 100
+
+
+@pytest.fixture(scope="function")
+def add_little_amount_of_pegged_in_peg_keeper(peg_keeper, pegged, little_amount, alice):
+    amount = little_amount * 10 ** pegged.decimals()
+    pegged._mint_for_testing(peg_keeper, amount, {"from": alice})
+
+
 def test_provide_no_balance(
     swap,
     peg,
@@ -14,13 +31,11 @@ def test_provide_no_balance(
     alice,
     peg_keeper,
     peg_keeper_updater,
-    set_peg_keeper_func,
 ):
     swap.add_liquidity([0, 10 ** 24], 0, {"from": alice})
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
 
-    set_peg_keeper_func()
     assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
 
     new_balances = [swap.balances(0), swap.balances(1)]
@@ -39,17 +54,16 @@ def test_provide_little_amount(
     alice,
     peg_keeper,
     peg_keeper_updater,
-    set_peg_keeper_func,
     little_amount,
-    provide_little_amount_of_pegged_to_peg_keeper,
+    add_little_amount_of_pegged_in_peg_keeper,
 ):
     swap.add_liquidity([0, 10 ** 24], 0, {"from": alice})
 
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
 
-    set_peg_keeper_func()
-    assert peg_keeper.update({"from": peg_keeper_updater}).return_value
+    # Profit is 0
+    assert "Provide" in peg_keeper.update({"from": peg_keeper_updater}).events
     provided_amount = little_amount * 10 ** 18
 
     new_balances = [swap.balances(0), swap.balances(1)]
@@ -84,7 +98,7 @@ def test_withdraw_pegged_exceed(
     peg_keeper,
     admin,
     little_amount,
-    provide_little_amount_of_pegged_to_peg_keeper,
+    add_little_amount_of_pegged_in_peg_keeper,
 ):
     alice_pegged_balance = pegged.balanceOf(alice)
     assert peg_keeper.withdraw_pegged(
@@ -104,7 +118,7 @@ def test_withdraw_pegged(
     peg_keeper,
     admin,
     little_amount,
-    provide_little_amount_of_pegged_to_peg_keeper,
+    add_little_amount_of_pegged_in_peg_keeper,
 ):
     amount = little_amount / 2 * 10 ** 18
 
