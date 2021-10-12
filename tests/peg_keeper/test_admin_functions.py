@@ -16,10 +16,10 @@ def test_parameters(peg_keeper, swap, pegged, admin, receiver):
     if hasattr(peg_keeper, "receiver"):
         assert peg_keeper.receiver() == receiver
         assert peg_keeper.future_receiver() == ZERO_ADDRESS
-        assert peg_keeper.receivers_profit() == 0
+        assert peg_keeper.profit() == 0
 
-    if hasattr(peg_keeper, "callers_part"):
-        assert peg_keeper.callers_part() == 1e5
+    if hasattr(peg_keeper, "caller_share"):
+        assert peg_keeper.caller_share() == 1e5
 
     assert peg_keeper.min_asymmetry() == 2
 
@@ -55,21 +55,21 @@ def test_set_new_min_asymmetry_only_admin(peg_keeper, alice):
         peg_keeper.set_new_min_asymmetry(2e7, {"from": alice})
 
 
-def test_set_new_callers_part(peg_keeper, admin):
-    new_callers_part = 5e4
-    peg_keeper.set_new_callers_part(new_callers_part, {"from": admin})
+def test_set_new_caller_share(peg_keeper, admin):
+    new_caller_share = 5e4
+    peg_keeper.set_new_caller_share(new_caller_share, {"from": admin})
 
-    assert peg_keeper.callers_part() == new_callers_part
+    assert peg_keeper.caller_share() == new_caller_share
 
 
-def test_set_new_callers_part_bad_value(peg_keeper, admin):
+def test_set_new_caller_share_bad_value(peg_keeper, admin):
     with brownie.reverts("dev: bad part value"):
-        peg_keeper.set_new_callers_part(1e5 + 1, {"from": admin})
+        peg_keeper.set_new_caller_share(1e5 + 1, {"from": admin})
 
 
-def test_set_new_callers_part_only_admin(peg_keeper, alice):
+def test_set_new_caller_share_only_admin(peg_keeper, alice):
     with brownie.reverts("dev: only admin"):
-        peg_keeper.set_new_callers_part(5e4, {"from": alice})
+        peg_keeper.set_new_caller_share(5e4, {"from": alice})
 
 
 def test_commit_new_admin(peg_keeper, admin, alice):

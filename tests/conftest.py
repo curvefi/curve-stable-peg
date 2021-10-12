@@ -236,7 +236,7 @@ def peg_keeper(
         "_pool": swap,
         "_receiver": receiver,
         "_min_asymmetry": 2,
-        "_callers_part": 10 ** 5,
+        "_caller_share": 10 ** 5,
     }
 
     contract = peg_keeper.deploy(*[args[i["name"]] for i in abi], {"from": admin})
