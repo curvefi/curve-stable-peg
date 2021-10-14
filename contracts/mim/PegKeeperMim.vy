@@ -12,7 +12,6 @@ interface CurvePool:
     def get_virtual_price() -> uint256: view
     def balanceOf(arg0: address) -> uint256: view
     def transfer(_to : address, _value : uint256) -> bool: nonpayable
-    def fee() -> uint256: view
 
 interface ERC20Pegged:
     def approve(_spender: address, _amount: uint256): nonpayable
@@ -49,8 +48,6 @@ min_asymmetry: public(uint256)
 PRECISION: constant(uint256) = 10 ** 18
 # Calculation error for profit
 PROFIT_THRESHOLD: constant(uint256) = 10 ** 18
-# Pool fee
-FEE_PRECISION: constant(uint256) = 10 ** 10
 
 pegged: public(address)
 pool: public(address)
@@ -140,9 +137,7 @@ def _calc_profit() -> uint256:
     lp_balance: uint256 = CurvePool(self.pool).balanceOf(self)
 
     virtual_price: uint256 = CurvePool(self.pool).get_virtual_price()
-    # Consider fee for adding/removing liquidity in the pool
-    debt: uint256 = self.debt * (FEE_PRECISION + CurvePool(self.pool).fee()) / FEE_PRECISION
-    lp_debt: uint256 = debt * PRECISION / virtual_price
+    lp_debt: uint256 = self.debt * PRECISION / virtual_price
 
     if lp_balance <= lp_debt + PROFIT_THRESHOLD:
         return 0

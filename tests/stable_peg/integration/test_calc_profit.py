@@ -103,19 +103,6 @@ class StateMachine:
                 return False
         return True
 
-    def _get_aim_profit(self):
-        virtual_price = self.swap.get_virtual_price()
-        if self.type == "template":
-            return (
-                self.swap.balanceOf(self.peg_keeper)
-                - self.peg_keeper.debt() * 10 ** 18 // virtual_price
-            )
-        else:
-            debt = self.peg_keeper.debt() * (10 ** 10 + self.swap.fee()) // 10 ** 10
-            return (
-                self.swap.balanceOf(self.peg_keeper) - debt * 10 ** 18 // virtual_price
-            )
-
     def invariant_profit(self):
         """
         Check Profit value.
@@ -123,7 +110,11 @@ class StateMachine:
         self._manual_update()
 
         profit = self.peg_keeper.calc_profit()
-        aim_profit = self._get_aim_profit()
+        virtual_price = self.swap.get_virtual_price()
+        aim_profit = (
+            self.swap.balanceOf(self.peg_keeper)
+            - self.peg_keeper.debt() * 10 ** 18 // virtual_price
+        )
         assert aim_profit >= profit  # Never take more than real profit
         assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 

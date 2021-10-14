@@ -64,7 +64,7 @@ def test_unprofitable_peg(
     able_to_add = pegged.balanceOf(peg_keeper)
     imbalance_pool(1, 5 * able_to_add + swap.balances(0) - swap.balances(1))
 
-    set_fees(10 ** 8, 0)
+    set_fees(10 ** 9, 0)
 
     with brownie.reverts("dev: peg was unprofitable"):
         peg_keeper.update({"from": alice})
@@ -85,9 +85,7 @@ def test_profit_share(
     receiver_profit = profit_after - profit_before
     caller_profit = swap.balanceOf(bob)
 
-    assert int(caller_profit) == pytest.approx(
-        (receiver_profit + caller_profit) * share // 10 ** 5, rel=1e-18, abs=1
-    )
+    assert caller_profit == (receiver_profit + caller_profit) * share // 10 ** 5
 
 
 def test_initial_debt(peg_keeper, initial_amounts):
@@ -113,8 +111,9 @@ def test_calc_profit(peg_keeper, swap, make_profit, donate_fee, fee, set_fees):
 
     profit = peg_keeper.calc_profit()
     virtual_price = swap.get_virtual_price()
-    debt = peg_keeper.debt() * (10 ** 10 + fee) // 10 ** 10
-    aim_profit = max(swap.balanceOf(peg_keeper) - debt * 10 ** 18 // virtual_price, 0)
+    aim_profit = (
+        swap.balanceOf(peg_keeper) - peg_keeper.debt() * 10 ** 18 // virtual_price
+    )
     assert aim_profit >= profit  # Never take more than real profit
     assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
