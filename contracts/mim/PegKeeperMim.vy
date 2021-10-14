@@ -61,6 +61,9 @@ caller_share: public(uint256)
 admin: public(address)
 future_admin: public(address)
 
+pegged_admin: public(address)
+future_pegged_admin: public(address)
+
 # Receiver of profit
 receiver: public(address)
 future_receiver: public(address)
@@ -82,6 +85,7 @@ def __init__(_pool: address, _receiver: address, _min_asymmetry: uint256, _calle
     ERC20Pegged(self.pegged).approve(_pool, MAX_UINT256)
 
     self.admin = msg.sender
+    self.pegged_admin = msg.sender
     self.receiver = _receiver
 
     self.min_asymmetry = _min_asymmetry
@@ -218,22 +222,41 @@ def set_new_caller_share(_new_caller_share: uint256):
     self.caller_share = _new_caller_share
 
 
-# Seems like _receiver must be specifying in init()
 @external
-def withdraw_pegged(_amount: uint256, _receiver: address) -> bool:
+def commit_new_pegged_admin(_new_pegged_admin: address):
+    """
+    @notice Commit new pegged admin
+    @param _new_pegged_admin New pegged admin address
+    """
+    assert msg.sender == self.pegged_admin  # dev: only pegged admin
+    self.future_pegged_admin = _new_pegged_admin
+
+
+@external
+def apply_new_pegged_admin():
+    """
+    @notice Apply new pegged admin
+    @dev Should be executed from new pegged admin
+    """
+    assert msg.sender == self.future_pegged_admin  # dev: only new pegged admin
+    self.pegged_admin = self.future_pegged_admin
+
+
+@external
+def withdraw_pegged(_amount: uint256, _receiver: address = msg.sender) -> uint256:
     """
     @notice Withdraw pegged coin from PegKeeper
-    @dev Min(pegged_balance, _amount) will be withdrawn. Should be executed from admin
+    @dev Min(pegged_balance, _amount) will be withdrawn. Should be executed from pegged admin
     @param _amount Amount of coin to withdraw
     @param _receiver Address that receives the withdrawn coins
-    @return True if withdrawn else False
+    @return Amount of withdrawn pegged
     """
-    assert msg.sender == self.admin  # dev: only admin
+    assert msg.sender == self.pegged_admin  # dev: only pegged admin
 
     pegged_balance: uint256 = ERC20Pegged(self.pegged).balanceOf(self)
 
     if pegged_balance == 0:
-        return False
+        return 0
 
     amount: uint256 = _amount
     if amount > pegged_balance:
@@ -253,7 +276,7 @@ def withdraw_pegged(_amount: uint256, _receiver: address) -> bool:
 
     log WithdrawPegged(amount, _receiver)
 
-    return True
+    return amount
 
 @external
 def withdraw_profit() -> uint256:

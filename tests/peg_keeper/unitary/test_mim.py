@@ -1,3 +1,4 @@
+import brownie
 import pytest
 
 pytestmark = pytest.mark.usefixtures(
@@ -75,6 +76,37 @@ def test_provide_little_amount(
     assert new_real_balances[1] == real_balances[1]
 
 
+def test_commit_new_pegged_admin(peg_keeper, admin, bob):
+    # Initially admin == pegged_admin
+    peg_keeper.commit_new_pegged_admin(bob, {"from": admin})
+    assert peg_keeper.pegged_admin() == admin
+    assert peg_keeper.future_pegged_admin() == bob
+
+    with brownie.reverts("dev: only pegged admin"):
+        peg_keeper.commit_new_pegged_admin(bob, {"from": bob})
+
+
+def test_new_pegged_admin(
+    peg_keeper, pegged, add_little_amount_of_pegged_in_peg_keeper, admin, bob
+):
+    peg_keeper.commit_new_pegged_admin(bob, {"from": admin})
+
+    with brownie.reverts("dev: only new pegged admin"):
+        peg_keeper.apply_new_pegged_admin({"from": admin})
+    peg_keeper.apply_new_pegged_admin({"from": bob})
+    assert peg_keeper.pegged_admin() == bob
+    assert peg_keeper.future_pegged_admin() == bob
+
+    # Only pegged admin
+    with brownie.reverts("dev: only pegged admin"):
+        peg_keeper.commit_new_pegged_admin(admin, {"from": admin})
+    amount = pegged.balanceOf(peg_keeper)
+    assert amount > 0
+    with brownie.reverts("dev: only pegged admin"):
+        peg_keeper.withdraw_pegged(amount, admin, {"from": admin})
+    peg_keeper.withdraw_pegged(amount, {"from": bob})
+
+
 def test_withdraw_pegged_no_balance(
     pegged,
     alice,
@@ -124,7 +156,10 @@ def test_withdraw_pegged(
 
     peg_keeper_pegged_balance = pegged.balanceOf(peg_keeper)
     alice_pegged_balance = pegged.balanceOf(alice)
-    assert peg_keeper.withdraw_pegged(amount, alice, {"from": admin}).return_value
+    returned_amount = peg_keeper.withdraw_pegged(
+        amount, alice, {"from": admin}
+    ).return_value
+    assert returned_amount == amount
 
     alice_new_pegged_balance = pegged.balanceOf(alice)
     peg_keeper_new_pegged_balance = pegged.balanceOf(peg_keeper)
