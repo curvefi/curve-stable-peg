@@ -38,7 +38,7 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: Run Tests
-      run: brownie test --unitary -C --no-success-flaky-report
+      run: brownie test --unitary -n auto -C --no-success-flaky-report
 
   integration:
     runs-on: ubuntu-latest
@@ -69,4 +69,4 @@ jobs:
       run: pip install -r requirements.txt
 
     - name: Run Tests
-      run: brownie test --integration --failfast --durations 5
+      run: brownie test --integration -n auto --failfast --durations 5
