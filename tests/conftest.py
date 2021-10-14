@@ -151,7 +151,7 @@ def pytest_collection_modifyitems(config, items):
 
     for item in items.copy():
         path = Path(item.fspath).relative_to(project._path)
-        path_parts = path.parts[1:-1]
+        path_parts = path.parts[1:]
         params = item.callspec.params
         peg_keeper_name = params["peg_keeper_name"]
         peg_type = _types[peg_keeper_name]
@@ -178,7 +178,7 @@ def pytest_collection_modifyitems(config, items):
                 continue
 
         if peg_keeper_name != "mim":
-            if "test_mim" in path_parts:
+            if "test_mim.py" in path_parts:
                 items.remove(item)
                 continue
 
