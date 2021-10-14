@@ -1,5 +1,6 @@
 import pytest
 from brownie import chain
+from brownie.exceptions import VirtualMachineError
 from brownie.test import strategy
 
 pytestmark = pytest.mark.usefixtures(
@@ -27,8 +28,7 @@ class StateMachine:
         decimals,
         min_asymmetry,
         peg_keeper,
-        peg_keeper_updater,
-        need_manual_update,
+        peg_keeper_type,
     ):
         cls.alice = alice
         cls.swap = swap
@@ -37,8 +37,7 @@ class StateMachine:
         cls.balances = [swap.balances(0), swap.balances(1)]
 
         cls.peg_keeper = peg_keeper
-        cls.peg_keeper_updater = peg_keeper_updater
-        cls.need_manual_update = need_manual_update
+        cls.type = peg_keeper_type
 
     def _update_balances(self, amounts, remove: bool = False):
         if remove:
@@ -117,12 +116,22 @@ class StateMachine:
         ).return_value
         self._update_balances(amounts)
 
+    def _manual_update(self) -> bool:
+        if self.type != "template":
+            try:
+                self.peg_keeper.update({"from": self.alice})
+            except VirtualMachineError as e:
+                assert e.revert_msg == "dev: peg was unprofitable"
+                return False
+        return True
+
     def invariant_check_diff(self):
         """
         Verify that Peg Keeper decreased diff of balances by 1/5.
         """
-        if self.need_manual_update:
-            self.peg_keeper.update({"from": self.peg_keeper_updater})
+        if not self._manual_update():
+            return
+
         diff = self.swap.balances(0) - self.swap.balances(1)
         last_diff = self.balances[0] - self.balances[1]
         if self._is_balanced():
@@ -150,7 +159,6 @@ def test_always_peg(
     decimals,
     set_fees,
     peg_keeper,
-    peg_keeper_updater,
     peg_keeper_type,
     admin,
     min_asymmetry,
@@ -166,7 +174,6 @@ def test_always_peg(
         decimals,
         min_asymmetry,
         peg_keeper,
-        peg_keeper_updater,
-        peg_keeper_type != "template",
+        peg_keeper_type,
         settings={"max_examples": 20, "stateful_step_count": 40},
     )

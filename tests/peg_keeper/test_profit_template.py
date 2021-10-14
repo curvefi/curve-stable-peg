@@ -74,14 +74,15 @@ def test_withdraw_profit(
     assert profit == returned
     assert profit == swap.balanceOf(receiver)
 
-    amount = 5 * initial_amounts[0] + swap.balances(1) - swap.balances(0)
+    debt = peg_keeper.debt()
+    amount = 5 * debt + swap.balances(1) - swap.balances(0)
     pegged._mint_for_testing(alice, amount, {"from": alice})
     pegged.approve(swap, amount, {"from": alice})
     swap.add_liquidity([amount, 0], 0, {"from": alice})
 
     swap.set_peg_keeper(peg_keeper, {"from": alice})
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
-    balance_change_after_withdraw(5 * initial_amounts[0])
+    balance_change_after_withdraw(5 * debt)
 
 
 def test_0_after_withdraw(peg_keeper, admin):

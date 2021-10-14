@@ -16,10 +16,9 @@ def test_parameters(peg_keeper, swap, pegged, admin, receiver):
     if hasattr(peg_keeper, "receiver"):
         assert peg_keeper.receiver() == receiver
         assert peg_keeper.future_receiver() == ZERO_ADDRESS
-        assert peg_keeper.profit() == 0
 
     if hasattr(peg_keeper, "caller_share"):
-        assert peg_keeper.caller_share() == 1e5
+        assert peg_keeper.caller_share() == 2e4
 
     assert peg_keeper.min_asymmetry() == 2
 

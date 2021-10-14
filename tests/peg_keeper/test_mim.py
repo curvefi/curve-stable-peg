@@ -131,3 +131,12 @@ def test_withdraw_pegged(
 
     assert alice_pegged_balance == alice_new_pegged_balance - amount
     assert peg_keeper_pegged_balance == peg_keeper_new_pegged_balance + amount
+
+
+def test_event(peg_keeper, pegged, alice, admin):
+    amount = pegged.balanceOf(alice)
+    pegged.transfer(peg_keeper, amount, {"from": alice})
+    tx = peg_keeper.withdraw_pegged(amount, alice, {"from": admin})
+    event = tx.events["WithdrawPegged"]
+    assert event["amount"] == amount
+    assert event["receiver"] == alice
