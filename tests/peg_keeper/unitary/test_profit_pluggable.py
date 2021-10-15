@@ -14,18 +14,6 @@ pytestmark = [
 
 
 @pytest.fixture(scope="module")
-def imbalance_pool(swap, coins, initial_amounts, alice):
-    def _inner(i, amount=None):
-        amounts = [0, 0]
-        amounts[i] = amount or initial_amounts[i] // 3
-        coins[i]._mint_for_testing(alice, amounts[i], {"from": alice})
-        coins[i].approve(swap, amounts[i], {"from": alice})
-        swap.add_liquidity(amounts, 0, {"from": alice})
-
-    return _inner
-
-
-@pytest.fixture(scope="module")
 def make_profit(swap, peg, pegged, initial_amounts, alice, set_fees):
     def _inner(amount):
         """Amount to add to balances."""

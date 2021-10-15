@@ -9,7 +9,6 @@ gas_price = GasNowScalingStrategy("slow", "fast")
 
 MIM_POOL = "0x5a6A4D54456819380173272A5E8E9B9904BdF41B"
 PROFIT_RECEIVER = "0x8CF8Af108B3B46DDC6AD596aebb917E053F0D72b"  # Pool proxy
-MIN_ASYMMETRY = 41000000
 CALLER_SHARE = 2 * 10 ** 4  # 2%
 
 PEGGED_ADMIN = "0x5f0DeE98360d8200b20812e174d139A1a633EDd2"  # Mim owner
@@ -21,7 +20,6 @@ def main():
     peg_keeper_mim = project.PegKeeperMim.deploy(
         MIM_POOL,
         PROFIT_RECEIVER,
-        MIN_ASYMMETRY,
         CALLER_SHARE,
         {"from": DEPLOYER, "gas_price": gas_price},
     )

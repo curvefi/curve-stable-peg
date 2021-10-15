@@ -39,12 +39,6 @@ event WithdrawPegged:
 ACTION_DELAY: constant(uint256) = 15 * 60
 ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
 
-# Minimum value to provide/withdraw, if can't provide/withdraw full amount
-MIN_PEGGED_AMOUNT: constant(uint256) = 10 ** 18
-
-ASYMMETRY_PRECISION: constant(uint256) = 10 ** 10
-min_asymmetry: public(uint256)
-
 PRECISION: constant(uint256) = 10 ** 18
 # Calculation error for profit
 PROFIT_THRESHOLD: constant(uint256) = 10 ** 18
@@ -72,12 +66,11 @@ admin_actions_deadline: public(uint256)
 
 
 @external
-def __init__(_pool: address, _receiver: address, _min_asymmetry: uint256, _caller_share: uint256):
+def __init__(_pool: address, _receiver: address, _caller_share: uint256):
     """
     @notice Contract constructor
     @param _pool Contract pool address
     @param _receiver Receiver of the profit
-    @param _min_asymmetry Min asymmetry for pegging
     @param _caller_share Caller's share of profit
     """
     self.pool = _pool
@@ -88,17 +81,14 @@ def __init__(_pool: address, _receiver: address, _min_asymmetry: uint256, _calle
     self.pegged_admin = msg.sender
     self.receiver = _receiver
 
-    self.min_asymmetry = _min_asymmetry
     self.caller_share = _caller_share
 
 
 @internal
-def _provide(_amount: uint256) -> bool:
+def _provide(_amount: uint256):
     pegged_balance: uint256 = ERC20Pegged(self.pegged).balanceOf(self)
     amount: uint256 = _amount
     if amount > pegged_balance:
-        if pegged_balance < MIN_PEGGED_AMOUNT:
-            return False
         amount = pegged_balance
 
     CurvePool(self.pool).add_liquidity([amount, 0], 0)
@@ -108,16 +98,12 @@ def _provide(_amount: uint256) -> bool:
 
     log Provide(amount)
 
-    return True
-
 
 @internal
-def _withdraw(_amount: uint256) -> bool:
+def _withdraw(_amount: uint256):
     debt: uint256 = self.debt
     amount: uint256 = _amount
     if amount > debt:
-        if debt < MIN_PEGGED_AMOUNT:
-            return False
         amount = debt
 
     CurvePool(self.pool).remove_liquidity_imbalance([amount, 0], MAX_UINT256)
@@ -126,14 +112,6 @@ def _withdraw(_amount: uint256) -> bool:
     self.debt -= amount
 
     log Withdraw(amount)
-
-    return True
-
-
-@internal
-@view
-def _is_balanced(x: uint256, y: uint256) -> bool:
-    return ASYMMETRY_PRECISION - 4 * ASYMMETRY_PRECISION * x * y / (x + y) ** 2 < self.min_asymmetry
 
 
 @internal
@@ -175,19 +153,12 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     balance_pegged: uint256 = CurvePool(pool).balances(0)
     balance_peg: uint256 = CurvePool(pool).balances(1)
 
-    if self._is_balanced(balance_peg, balance_pegged):
-        return 0
-
     initial_profit: uint256 = self._calc_profit()
 
-    status: bool = False
     if balance_peg > balance_pegged:
-        status = self._provide((balance_peg - balance_pegged) / 5)
+        self._provide((balance_peg - balance_pegged) / 5)
     else:
-        status = self._withdraw((balance_pegged - balance_peg) / 5)
-
-    if not status:
-        return 0
+        self._withdraw((balance_pegged - balance_peg) / 5)
 
     # Send generated profit
     new_profit: uint256 = self._calc_profit()
@@ -197,20 +168,6 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     CurvePool(self.pool).transfer(_beneficiary, caller_profit)
 
     return caller_profit
-
-
-@external
-@nonpayable
-def set_new_min_asymmetry(_new_min_asymmetry: uint256):
-    """
-    @notice Set new min_asymmetry of pool
-    @param _new_min_asymmetry Min asymmetry with PRECISION
-    """
-    assert msg.sender == self.admin  # dev: only admin
-    assert 1 < _new_min_asymmetry  # dev: bad asymmetry value
-    assert _new_min_asymmetry < ASYMMETRY_PRECISION  # dev: bad asymmetry value
-
-    self.min_asymmetry = _new_min_asymmetry
 
 
 @external

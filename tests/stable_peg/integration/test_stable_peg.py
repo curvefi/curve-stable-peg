@@ -121,7 +121,10 @@ class StateMachine:
             try:
                 self.peg_keeper.update({"from": self.alice})
             except VirtualMachineError as e:
-                assert e.revert_msg == "dev: peg was unprofitable"
+                assert e.revert_msg in [
+                    "dev: peg was unprofitable",
+                    "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
+                ]
                 return False
         return True
 
@@ -134,7 +137,7 @@ class StateMachine:
 
         diff = self.swap.balances(0) - self.swap.balances(1)
         last_diff = self.balances[0] - self.balances[1]
-        if self._is_balanced():
+        if self.type == "template" and self._is_balanced():
             assert diff == last_diff
         else:
             # Negative diff can make error of +-1
@@ -164,7 +167,8 @@ def test_always_peg(
     min_asymmetry,
 ):
     set_fees(4 * 10 ** 7, 0)
-    peg_keeper.set_new_min_asymmetry(min_asymmetry, {"from": admin})
+    if peg_keeper_type == "template":
+        peg_keeper.set_new_min_asymmetry(min_asymmetry, {"from": admin})
 
     # Probably need to lower parameters, test takes 40min
     state_machine(

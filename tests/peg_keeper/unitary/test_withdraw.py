@@ -1,3 +1,4 @@
+import brownie
 import pytest
 from brownie import ZERO_ADDRESS
 from brownie.test import given, strategy
@@ -100,11 +101,22 @@ def test_withdraw_dust_debt(
 
 
 def test_almost_balanced(
-    swap, alice, peg_keeper, peg_keeper_updater, set_peg_keeper_func
+    swap,
+    alice,
+    peg_keeper,
+    peg_keeper_type,
+    peg_keeper_updater,
+    set_peg_keeper_func,
+    set_fees,
 ):
     swap.add_liquidity([10 ** 18, 0], 0, {"from": alice})
     set_peg_keeper_func()
-    assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
+    if peg_keeper_type == "template":
+        assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
+    else:
+        set_fees(1 * 10 ** 6, 0)
+        with brownie.reverts("dev: peg was unprofitable"):
+            peg_keeper.update({"from": peg_keeper_updater})
 
 
 def test_event(swap, initial_amounts, alice, peg_keeper, peg_keeper_updater):

@@ -115,7 +115,10 @@ class StateMachine:
             try:
                 self.peg_keeper.update({"from": self.alice})
             except VirtualMachineError as e:
-                assert e.revert_msg == "dev: peg was unprofitable"
+                assert e.revert_msg in [
+                    "dev: peg was unprofitable",
+                    "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
+                ]
                 return False
         return True
 
@@ -163,7 +166,8 @@ def test_withdraw_profit(
     always_withdraw,
 ):
     set_fees(4 * 10 ** 7, 0)
-    peg_keeper.set_new_min_asymmetry(2, {"from": admin})
+    if peg_keeper_type == "template":
+        peg_keeper.set_new_min_asymmetry(2, {"from": admin})
 
     state_machine(
         StateMachine,

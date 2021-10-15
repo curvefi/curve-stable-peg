@@ -37,7 +37,8 @@ def test_provide_no_balance(
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
 
-    assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
+    with brownie.reverts():
+        peg_keeper.update({"from": peg_keeper_updater})
 
     new_balances = [swap.balances(0), swap.balances(1)]
     new_real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
