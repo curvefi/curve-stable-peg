@@ -1,14 +1,12 @@
 import pytest
 from brownie.test import given, strategy
 
-pytestmark = [
-    pytest.mark.usefixtures(
-        "add_initial_liquidity",
-        "provide_token_to_peg_keeper",
-        "mint_alice",
-    ),
-    pytest.mark.template,
-]
+pytestmark = pytest.mark.usefixtures(
+    "add_initial_liquidity",
+    "provide_token_to_peg_keeper",
+    "mint_alice",
+    "approve_alice",
+)
 
 
 @pytest.fixture(scope="module")
@@ -23,6 +21,7 @@ def make_profit(swap, peg, pegged, initial_amounts, alice, set_fees):
 
         pegged.approve(swap, exchange_amount, {"from": alice})
         swap.exchange(1, 0, exchange_amount, 0, {"from": alice})
+        set_fees(0, 0)
 
     return _inner
 
@@ -41,15 +40,15 @@ def test_calc_initial_profit(peg_keeper, swap):
 
 @given(donate_fee=strategy("int", min_value=1, max_value=10 ** 20))
 def test_calc_profit(peg_keeper, swap, make_profit, donate_fee):
-    debt = peg_keeper.debt()
-
     make_profit(donate_fee)
 
     profit = peg_keeper.calc_profit()
     virtual_price = swap.get_virtual_price()
-    aim_profit = swap.balanceOf(peg_keeper) - debt * 10 ** 18 // virtual_price
+    aim_profit = (
+        swap.balanceOf(peg_keeper) - peg_keeper.debt() * 10 ** 18 // virtual_price
+    )
     assert aim_profit >= profit  # Never take more than real profit
-    assert aim_profit - profit < 1e18  # Error less than 1 LP Token
+    assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
 
 @given(donate_fee=strategy("int", min_value=1, max_value=10 ** 20))
@@ -62,6 +61,7 @@ def test_withdraw_profit(
     admin,
     receiver,
     alice,
+    set_peg_keeper_func,
     peg_keeper_updater,
     balance_change_after_withdraw,
     donate_fee,
@@ -74,14 +74,15 @@ def test_withdraw_profit(
     assert profit == returned
     assert profit == swap.balanceOf(receiver)
 
-    amount = 5 * initial_amounts[0] + swap.balances(1) - swap.balances(0)
+    debt = peg_keeper.debt()
+    amount = 5 * debt + swap.balances(1) - swap.balances(0)
     pegged._mint_for_testing(alice, amount, {"from": alice})
     pegged.approve(swap, amount, {"from": alice})
     swap.add_liquidity([amount, 0], 0, {"from": alice})
 
-    swap.set_peg_keeper(peg_keeper, {"from": alice})
+    set_peg_keeper_func()
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
-    balance_change_after_withdraw(5 * initial_amounts[0])
+    balance_change_after_withdraw(5 * debt)
 
 
 def test_0_after_withdraw(peg_keeper, admin):

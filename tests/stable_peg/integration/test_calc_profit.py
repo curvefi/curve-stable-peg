@@ -1,17 +1,15 @@
 import pytest
 from brownie import chain
+from brownie.exceptions import VirtualMachineError
 from brownie.test import strategy
 
-pytestmark = [
-    pytest.mark.usefixtures(
-        "add_initial_liquidity",
-        "provide_token_to_peg_keeper",
-        "set_peg_keeper",
-        "mint_alice",
-        "approve_alice",
-    ),
-    pytest.mark.template,
-]
+pytestmark = pytest.mark.usefixtures(
+    "add_initial_liquidity",
+    "provide_token_to_peg_keeper",
+    "set_peg_keeper",
+    "mint_alice",
+    "approve_alice",
+)
 
 
 class StateMachine:
@@ -23,12 +21,14 @@ class StateMachine:
     st_idx = strategy("int", min_value=0, max_value=1)
     st_pct = strategy("decimal", min_value="0.5", max_value="10000", places=2)
 
-    def __init__(cls, alice, swap, peg_keeper, decimals):
+    def __init__(cls, alice, swap, peg_keeper, decimals, peg_keeper_type):
         cls.alice = alice
         cls.swap = swap
         cls.peg_keeper = peg_keeper
         cls.decimals = decimals
         cls.profit = 0
+
+        cls.type = peg_keeper_type
 
     def setup(self):
         self.profit = self.peg_keeper.calc_profit()
@@ -94,10 +94,24 @@ class StateMachine:
         assert profit >= self.profit
         self.profit = profit
 
+    def _manual_update(self) -> bool:
+        if self.type != "template":
+            try:
+                self.peg_keeper.update({"from": self.alice})
+            except VirtualMachineError as e:
+                assert e.revert_msg in [
+                    "dev: peg was unprofitable",
+                    "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
+                ]
+                return False
+        return True
+
     def invariant_profit(self):
         """
         Check Profit value.
         """
+        self._manual_update()
+
         profit = self.peg_keeper.calc_profit()
         virtual_price = self.swap.get_virtual_price()
         aim_profit = (
@@ -105,7 +119,7 @@ class StateMachine:
             - self.peg_keeper.debt() * 10 ** 18 // virtual_price
         )
         assert aim_profit >= profit  # Never take more than real profit
-        assert aim_profit - profit < 1e18  # Error less than 1 LP Token
+        assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
     def invariant_advance_time(self):
         """
@@ -123,10 +137,12 @@ def test_profit_increases(
     decimals,
     set_fees,
     peg_keeper,
+    peg_keeper_type,
     admin,
 ):
     set_fees(4 * 10 ** 7, 0)
-    peg_keeper.set_new_min_asymmetry(2, {"from": admin})
+    if peg_keeper_type == "template":
+        peg_keeper.set_new_min_asymmetry(2, {"from": admin})
 
     state_machine(
         StateMachine,
@@ -134,5 +150,6 @@ def test_profit_increases(
         swap,
         peg_keeper,
         decimals,
+        peg_keeper_type,
         settings={"max_examples": 20, "stateful_step_count": 40},
     )

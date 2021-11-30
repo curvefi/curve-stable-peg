@@ -15,8 +15,6 @@ interface CurvePool:
 
 interface ERC20Pegged:
     def approve(_spender: address, _amount: uint256): nonpayable
-    def mint(_to: address, _amount: uint256): nonpayable
-    def burn(_amount: uint256): nonpayable
     def balanceOf(arg0: address) -> uint256: view
 
 
@@ -30,6 +28,11 @@ event Withdraw:
 
 event Profit:
     lp_amount: uint256
+
+
+event WithdrawPegged:
+    amount: uint256
+    receiver: address
 
 
 # Time between providing/withdrawing coins
@@ -52,6 +55,9 @@ caller_share: public(uint256)
 admin: public(address)
 future_admin: public(address)
 
+pegged_admin: public(address)
+future_pegged_admin: public(address)
+
 # Receiver of profit
 receiver: public(address)
 future_receiver: public(address)
@@ -72,6 +78,7 @@ def __init__(_pool: address, _receiver: address, _caller_share: uint256):
     ERC20Pegged(self.pegged).approve(_pool, MAX_UINT256)
 
     self.admin = msg.sender
+    self.pegged_admin = msg.sender
     self.receiver = _receiver
 
     self.caller_share = _caller_share
@@ -79,13 +86,17 @@ def __init__(_pool: address, _receiver: address, _caller_share: uint256):
 
 @internal
 def _provide(_amount: uint256):
-    ERC20Pegged(self.pegged).mint(self, _amount)
+    pegged_balance: uint256 = ERC20Pegged(self.pegged).balanceOf(self)
+    amount: uint256 = _amount
+    if amount > pegged_balance:
+        amount = pegged_balance
 
-    CurvePool(self.pool).add_liquidity([_amount, 0], 0)
+    CurvePool(self.pool).add_liquidity([amount, 0], 0)
 
     self.last_change = block.timestamp
-    self.debt += _amount
-    log Provide(_amount)
+    self.debt += amount
+
+    log Provide(amount)
 
 
 @internal
@@ -171,6 +182,65 @@ def set_new_caller_share(_new_caller_share: uint256):
 
     self.caller_share = _new_caller_share
 
+
+@external
+@nonpayable
+def commit_new_pegged_admin(_new_pegged_admin: address):
+    """
+    @notice Commit new pegged admin
+    @param _new_pegged_admin New pegged admin address
+    """
+    assert msg.sender == self.pegged_admin  # dev: only pegged admin
+    self.future_pegged_admin = _new_pegged_admin
+
+
+@external
+@nonpayable
+def apply_new_pegged_admin():
+    """
+    @notice Apply new pegged admin
+    @dev Should be executed from new pegged admin
+    """
+    assert msg.sender == self.future_pegged_admin  # dev: only new pegged admin
+    self.pegged_admin = self.future_pegged_admin
+
+
+@external
+@nonpayable
+def withdraw_pegged(_amount: uint256, _receiver: address = msg.sender) -> uint256:
+    """
+    @notice Withdraw pegged coin from PegKeeper
+    @dev Min(pegged_balance, _amount) will be withdrawn. Should be executed from pegged admin
+    @param _amount Amount of coin to withdraw
+    @param _receiver Address that receives the withdrawn coins
+    @return Amount of withdrawn pegged
+    """
+    assert msg.sender == self.pegged_admin  # dev: only pegged admin
+
+    pegged_balance: uint256 = ERC20Pegged(self.pegged).balanceOf(self)
+
+    if pegged_balance == 0:
+        return 0
+
+    amount: uint256 = _amount
+    if amount > pegged_balance:
+        amount = pegged_balance
+
+    response: Bytes[32] = raw_call(
+        self.pegged,
+        concat(
+            method_id("transfer(address,uint256)"),
+            convert(_receiver, bytes32),
+            convert(amount, bytes32),
+        ),
+        max_outsize=32,
+    )
+    if len(response) > 0:
+        assert convert(response, bool)
+
+    log WithdrawPegged(amount, _receiver)
+
+    return amount
 
 @external
 @nonpayable

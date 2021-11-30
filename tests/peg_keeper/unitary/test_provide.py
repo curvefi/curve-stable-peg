@@ -24,7 +24,8 @@ def test_provide(
     real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
 
     set_peg_keeper_func()
-    assert peg_keeper.update({"from": peg_keeper_updater}).return_value
+    # Sometimes profit is 0
+    assert "Provide" in peg_keeper.update({"from": peg_keeper_updater}).events
 
     new_balances = [swap.balances(0), swap.balances(1)]
     new_real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
