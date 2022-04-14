@@ -17,13 +17,11 @@ def test_provide(
     amount,
     peg_keeper,
     peg_keeper_updater,
-    set_peg_keeper_func,
 ):
     swap.add_liquidity([0, amount], 0, {"from": alice})
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
 
-    set_peg_keeper_func()
     # Sometimes profit is 0
     assert "Provide" in peg_keeper.update({"from": peg_keeper_updater}).events
 
@@ -37,18 +35,16 @@ def test_provide(
 
 
 def test_min_coin_amount(
-    swap, initial_amounts, alice, peg_keeper, peg_keeper_updater, set_peg_keeper_func
+    swap, initial_amounts, alice, peg_keeper, peg_keeper_updater
 ):
     swap.add_liquidity([0, initial_amounts[1]], 0, {"from": alice})
-    set_peg_keeper_func()
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
 
 
 def test_almost_balanced(
-    swap, alice, peg_keeper, peg_keeper_updater, set_peg_keeper_func
+    swap, alice, peg_keeper, peg_keeper_updater
 ):
     swap.add_liquidity([0, 10 ** 18], 0, {"from": alice})
-    set_peg_keeper_func()
     assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
 
 

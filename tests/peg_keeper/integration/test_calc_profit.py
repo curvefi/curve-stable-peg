@@ -6,7 +6,6 @@ from brownie.test import strategy
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
     "provide_token_to_peg_keeper",
-    "set_peg_keeper",
     "mint_alice",
     "approve_alice",
 )
@@ -15,35 +14,21 @@ pytestmark = pytest.mark.usefixtures(
 class StateMachine:
     """
     Stateful test that performs a series of deposits, swaps and withdrawals
-    and confirms that peg keeper's withdraw profit does not take too much.
+    and confirms that profit is calculated right.
     """
 
     st_idx = strategy("int", min_value=0, max_value=1)
     st_pct = strategy("decimal", min_value="0.5", max_value="10000", places=2)
 
-    def __init__(
-        cls,
-        alice,
-        swap,
-        pegged,
-        peg_keeper,
-        decimals,
-        receiver,
-        always_withdraw,
-        peg_keeper_type,
-    ):
+    def __init__(cls, alice, swap, peg_keeper, decimals):
         cls.alice = alice
         cls.swap = swap
-        cls.pegged = pegged
         cls.peg_keeper = peg_keeper
         cls.decimals = decimals
-        cls.receiver = receiver
-        cls.always_withdraw = always_withdraw
-        cls.type = peg_keeper_type
+        cls.profit = 0
 
     def setup(self):
-        # Needed in withdraw profit check
-        self.pegged.approve(self.swap, 2 ** 256 - 1, {"from": self.alice})
+        self.profit = self.peg_keeper.calc_profit()
 
     def rule_add_one_coin(self, st_idx, st_pct):
         """
@@ -98,49 +83,39 @@ class StateMachine:
         amount = 10 ** self.decimals[st_idx] * st_pct
         self.swap.exchange(st_idx, 1 - st_idx, amount, 0, {"from": self.alice})
 
-    def rule_withdraw_profit(self):
+    def invariant_profit_increases(self):
         """
-        Withdraw profit from Peg Keeper.
+        Verify that Peg Keeper profit only increases.
         """
         profit = self.peg_keeper.calc_profit()
-        receiver_balance = self.swap.balanceOf(self.receiver)
-
-        returned = self.peg_keeper.withdraw_profit().return_value
-
-        assert profit == returned
-        assert receiver_balance + profit == self.swap.balanceOf(self.receiver)
+        assert profit >= self.profit
+        self.profit = profit
 
     def _manual_update(self) -> bool:
-        if self.type != "template":
-            try:
-                self.peg_keeper.update({"from": self.alice})
-            except VirtualMachineError as e:
-                assert e.revert_msg in [
-                    "dev: peg was unprofitable",
-                    "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
-                ]
-                return False
+        try:
+            self.peg_keeper.update({"from": self.alice})
+        except VirtualMachineError as e:
+            assert e.revert_msg in [
+                "dev: peg was unprofitable",
+                "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
+            ]
+            return False
         return True
 
-    def invariant_withdraw_profit(self):
+    def invariant_profit(self):
         """
-        Withdraw profit and check that Peg Keeper is still able to withdraw his debt.
+        Check Profit value.
         """
         self._manual_update()
-        self.rule_withdraw_profit()
 
-        debt = self.peg_keeper.debt()
-        amount = 5 * (debt + 1) + self.swap.balances(1) - self.swap.balances(0)
-        self.pegged._mint_for_testing(self.alice, amount, {"from": self.alice})
-        self.swap.add_liquidity([amount, 0], 0, {"from": self.alice})
-
-        chain.sleep(15 * 60)
-        if self._manual_update():
-            assert self.peg_keeper.debt() == 0
-            assert self.swap.balances(1) == self.swap.balances(0) - 4 * debt - 5
-
-        # withdraw_profit, mint, add_liquidity
-        chain.undo(2 if self.always_withdraw else 3)
+        profit = self.peg_keeper.calc_profit()
+        virtual_price = self.swap.get_virtual_price()
+        aim_profit = (
+            self.swap.balanceOf(self.peg_keeper)
+            - self.peg_keeper.debt() * 10 ** 18 // virtual_price
+        )
+        assert aim_profit >= profit  # Never take more than real profit
+        assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
     def invariant_advance_time(self):
         """
@@ -150,34 +125,23 @@ class StateMachine:
         chain.sleep(15 * 60)
 
 
-@pytest.mark.parametrize("always_withdraw", [False, True])
-def test_withdraw_profit(
+def test_profit_increases(
     add_initial_liquidity,
     state_machine,
     swap,
-    pegged,
+    alice,
     decimals,
     set_fees,
     peg_keeper,
-    peg_keeper_type,
     admin,
-    receiver,
-    alice,
-    always_withdraw,
 ):
     set_fees(4 * 10 ** 7, 0)
-    if peg_keeper_type == "template":
-        peg_keeper.set_new_min_asymmetry(2, {"from": admin})
 
     state_machine(
         StateMachine,
         alice,
         swap,
-        pegged,
         peg_keeper,
         decimals,
-        receiver,
-        always_withdraw,
-        peg_keeper_type,
-        settings={"max_examples": 10, "stateful_step_count": 10},
+        settings={"max_examples": 20, "stateful_step_count": 40},
     )

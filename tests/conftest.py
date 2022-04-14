@@ -14,47 +14,17 @@ pytest_plugins = [
 
 # Metadata of each peg keeper
 _contracts = {
-    "template": "PegKeeperTemplate",
     "pluggable-optimized": "PegKeeperPluggableOptimized",
     "mim": "PegKeeperMim",
-}
-_types = {
-    "template": "template",
-    "pluggable-optimized": "pluggable",
-    "mim": "pluggable",
 }
 
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--type",
-        action="store",
-        default="template,pluggable",
-        help="comma-separated list of peg keeper types to test against",
-    )
-    parser.addoption(
         "--contracts",
         action="store",
         default="",
         help="comma-separated list of peg keeper name to test against",
-    )
-    parser.addoption(
-        "--peg-keeper",
-        action="store_true",
-        default=False,
-        help="only run tests for Peg Keeper",
-    )
-    parser.addoption(
-        "--stable-swap",
-        action="store_true",
-        default=False,
-        help="only run tests for Stable Swap",
-    )
-    parser.addoption(
-        "--stable-peg",
-        action="store_true",
-        default=False,
-        help="only run tests for TODO",
     )
     parser.addoption("--unitary", action="store_true", help="only run unit tests")
     parser.addoption(
@@ -66,28 +36,6 @@ def pytest_addoption(parser):
         default=False,
         help="only run forked tests",
     )
-
-
-def pytest_configure(config):
-    # add custom markers
-    config.addinivalue_line(
-        "markers",
-        "template: template-specific tests",
-    )
-    config.addinivalue_line(
-        "markers",
-        "pluggable: pluggable-specific tests",
-    )
-
-
-def _get_test_suits_flags(config) -> (bool, bool, bool):
-    run_peg_keeper = config.getoption("peg_keeper")
-    run_stable_swap = config.getoption("stable_swap")
-    run_stable_peg = config.getoption("stable_peg")
-
-    if not (run_peg_keeper or run_stable_swap or run_stable_peg):
-        return True, True, True
-    return run_peg_keeper, run_stable_swap, run_stable_peg
 
 
 def pytest_ignore_collect(path, config):
@@ -111,16 +59,6 @@ def pytest_ignore_collect(path, config):
 
     # Skip other tests when forked or forked tests when not
     if config.getoption("forked_tests") or "forked" in path_parts:
-        return True
-
-    run_peg_keeper, run_stable_swap, run_stable_peg = _get_test_suits_flags(config)
-    if path_parts[0] == "peg_keeper" and not run_peg_keeper:
-        return True
-
-    if path_parts[0] == "stable_swap" and not run_stable_swap:
-        return True
-
-    if path_parts[0] == "stable_peg" and not run_stable_peg:
         return True
 
     # with the `--unitary` flag, skip any tests in an `integration` subdirectory
@@ -147,35 +85,12 @@ def pytest_generate_tests(metafunc):
 
 def pytest_collection_modifyitems(config, items):
     project = get_loaded_projects()[0]
-    peg_types = config.getoption("type").split(",")
 
     for item in items.copy():
         path = Path(item.fspath).relative_to(project._path)
         path_parts = path.parts[1:]
         params = item.callspec.params
         peg_keeper_name = params["peg_keeper_name"]
-        peg_type = _types[peg_keeper_name]
-
-        if peg_type not in peg_types:
-            items.remove(item)
-            continue
-
-        # Temporarily skip template tests
-        if peg_type == "template":
-            items.remove(item)
-            continue
-
-        # Skip template-specific and stable_swap tests for non template
-        if peg_type != "template":
-            if item.get_closest_marker(name="template") or "stable_swap" in path_parts:
-                items.remove(item)
-                continue
-
-        # Skip pluggable-specific tests for non pluggable
-        if peg_type == "template":
-            if item.get_closest_marker(name="pluggable"):
-                items.remove(item)
-                continue
 
         if peg_keeper_name != "mim":
             if "test_mim.py" in path_parts:
@@ -201,13 +116,8 @@ def peg_keeper_name(request):
     return request.param
 
 
-@pytest.fixture(scope="session")
-def peg_keeper_type(peg_keeper_name):
-    return _types[peg_keeper_name]
-
-
 @pytest.fixture(scope="module")
-def swap(StableSwap, peg_keeper_type, coins, alice, is_forked):
+def swap(StableSwap, coins, alice, is_forked):
     if is_forked:
         yield Contract(
             "0x5a6A4D54456819380173272A5E8E9B9904BdF41B"
@@ -251,20 +161,5 @@ def peg_keeper(
 
 
 @pytest.fixture(scope="module")
-def set_peg_keeper_func(swap, peg_keeper, alice, peg_keeper_type):
-    def inner(address=peg_keeper):
-        if peg_keeper_type == "template":
-            swap.set_peg_keeper(address, {"from": alice})
-
-    return inner
-
-
-@pytest.fixture(scope="module")
-def set_peg_keeper(set_peg_keeper_func):
-    set_peg_keeper_func()
-
-
-@pytest.fixture(scope="module")
-def peg_keeper_updater(peg_keeper_type, charlie, swap):
-    if peg_keeper_type != "template":
-        return charlie
+def peg_keeper_updater(charlie, swap):
+    return charlie

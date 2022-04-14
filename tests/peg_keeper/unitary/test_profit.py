@@ -61,7 +61,6 @@ def test_withdraw_profit(
     admin,
     receiver,
     alice,
-    set_peg_keeper_func,
     peg_keeper_updater,
     balance_change_after_withdraw,
     donate_fee,
@@ -80,7 +79,6 @@ def test_withdraw_profit(
     pegged.approve(swap, amount, {"from": alice})
     swap.add_liquidity([amount, 0], 0, {"from": alice})
 
-    set_peg_keeper_func()
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
     balance_change_after_withdraw(5 * debt)
 
@@ -90,7 +88,7 @@ def test_0_after_withdraw(peg_keeper, admin):
     assert peg_keeper.calc_profit() == 0
 
 
-def test_withdraw_profit_access(peg_keeper, alice, set_peg_keeper):
+def test_withdraw_profit_access(peg_keeper, alice):
     peg_keeper.withdraw_profit({"from": alice})
 
 

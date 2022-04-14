@@ -8,8 +8,7 @@ pytestmark = [
         "provide_token_to_peg_keeper",
         "mint_alice",
         "approve_alice",
-    ),
-    pytest.mark.pluggable,
+    )
 ]
 
 
