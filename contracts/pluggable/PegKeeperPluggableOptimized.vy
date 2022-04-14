@@ -1,6 +1,10 @@
-# (c) Curve.Fi, 2021
-# Peg Keeper for pool with equal decimals of coins
-# @version 0.2.15
+# @version 0.3.1
+"""
+@title Zap for Curve Factory
+@license MIT
+@author Curve.Fi
+@notice Peg Keeper for pool with equal decimals of coins
+"""
 
 
 interface CurvePool:
@@ -40,8 +44,8 @@ PRECISION: constant(uint256) = 10 ** 18
 # Calculation error for profit
 PROFIT_THRESHOLD: constant(uint256) = 10 ** 18
 
-pegged: public(address)
-pool: public(address)
+PEGGED: immutable(address)
+POOL: immutable(address)
 
 last_change: public(uint256)
 debt: public(uint256)
@@ -67,9 +71,10 @@ def __init__(_pool: address, _receiver: address, _caller_share: uint256):
     @param _receiver Receiver of the profit
     @param _caller_share Caller's share of profit
     """
-    self.pool = _pool
-    self.pegged = CurvePool(_pool).coins(0)
-    ERC20Pegged(self.pegged).approve(_pool, MAX_UINT256)
+    POOL = _pool
+    pegged: address = CurvePool(_pool).coins(0)
+    PEGGED = pegged
+    ERC20Pegged(pegged).approve(_pool, MAX_UINT256)
 
     self.admin = msg.sender
     self.receiver = _receiver
@@ -79,9 +84,9 @@ def __init__(_pool: address, _receiver: address, _caller_share: uint256):
 
 @internal
 def _provide(_amount: uint256):
-    ERC20Pegged(self.pegged).mint(self, _amount)
+    ERC20Pegged(PEGGED).mint(self, _amount)
 
-    CurvePool(self.pool).add_liquidity([_amount, 0], 0)
+    CurvePool(POOL).add_liquidity([_amount, 0], 0)
 
     self.last_change = block.timestamp
     self.debt += _amount
@@ -95,7 +100,7 @@ def _withdraw(_amount: uint256):
     if amount > debt:
         amount = debt
 
-    CurvePool(self.pool).remove_liquidity_imbalance([amount, 0], MAX_UINT256)
+    CurvePool(POOL).remove_liquidity_imbalance([amount, 0], MAX_UINT256)
 
     self.last_change = block.timestamp
     self.debt -= amount
@@ -106,9 +111,9 @@ def _withdraw(_amount: uint256):
 @internal
 @view
 def _calc_profit() -> uint256:
-    lp_balance: uint256 = CurvePool(self.pool).balanceOf(self)
+    lp_balance: uint256 = CurvePool(POOL).balanceOf(self)
 
-    virtual_price: uint256 = CurvePool(self.pool).get_virtual_price()
+    virtual_price: uint256 = CurvePool(POOL).get_virtual_price()
     lp_debt: uint256 = self.debt * PRECISION / virtual_price
 
     if lp_balance <= lp_debt + PROFIT_THRESHOLD:
@@ -138,9 +143,8 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     if self.last_change + ACTION_DELAY > block.timestamp:
         return 0
 
-    pool: address = self.pool
-    balance_pegged: uint256 = CurvePool(pool).balances(0)
-    balance_peg: uint256 = CurvePool(pool).balances(1)
+    balance_pegged: uint256 = CurvePool(POOL).balances(0)
+    balance_peg: uint256 = CurvePool(POOL).balances(1)
 
     initial_profit: uint256 = self._calc_profit()
 
@@ -154,7 +158,7 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     assert new_profit >= initial_profit  # dev: peg was unprofitable
     lp_amount: uint256 = new_profit - initial_profit
     caller_profit: uint256 = lp_amount * self.caller_share / SHARE_PRECISION
-    CurvePool(self.pool).transfer(_beneficiary, caller_profit)
+    CurvePool(POOL).transfer(_beneficiary, caller_profit)
 
     return caller_profit
 
@@ -180,7 +184,7 @@ def withdraw_profit() -> uint256:
     @return Amount of LP Token received
     """
     lp_amount: uint256 = self._calc_profit()
-    CurvePool(self.pool).transfer(self.receiver, lp_amount)
+    CurvePool(POOL).transfer(self.receiver, lp_amount)
 
     log Profit(lp_amount)
 
