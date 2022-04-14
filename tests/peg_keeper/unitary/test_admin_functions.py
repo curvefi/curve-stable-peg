@@ -36,7 +36,7 @@ def test_update_access(
 
 @pytest.mark.template
 def test_update_no_access(peg_keeper, bob):
-    with brownie.reverts("dev: callable only by the pool"):
+    with brownie.reverts():  # dev: callable only by the pool
         peg_keeper.update({"from": bob})
 
 
@@ -48,12 +48,12 @@ def test_set_new_caller_share(peg_keeper, admin):
 
 
 def test_set_new_caller_share_bad_value(peg_keeper, admin):
-    with brownie.reverts("dev: bad part value"):
+    with brownie.reverts():  # dev: bad part value
         peg_keeper.set_new_caller_share(1e5 + 1, {"from": admin})
 
 
 def test_set_new_caller_share_only_admin(peg_keeper, alice):
-    with brownie.reverts("dev: only admin"):
+    with brownie.reverts():  # dev: only admin
         peg_keeper.set_new_caller_share(5e4, {"from": alice})
 
 
@@ -70,7 +70,7 @@ def test_commit_new_admin(peg_keeper, admin, alice):
 
 
 def test_commit_new_admin_access(peg_keeper, alice):
-    with brownie.reverts("dev: only admin"):
+    with brownie.reverts():  # dev: only admin
         peg_keeper.commit_new_admin(alice, {"from": alice})
 
 
@@ -88,7 +88,7 @@ def test_apply_new_admin_only_new_admin(peg_keeper, admin, alice, bob):
     peg_keeper.commit_new_admin(alice, {"from": admin})
     chain.sleep(ADMIN_ACTIONS_DEADLINE)
 
-    with brownie.reverts("dev: only new admin"):
+    with brownie.reverts():  # dev: only new admin
         peg_keeper.apply_new_admin({"from": bob})
 
 
@@ -96,7 +96,7 @@ def test_apply_new_admin_only_new_admin(peg_keeper, admin, alice, bob):
 def test_apply_new_admin_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_admin(alice, {"from": admin})
     chain.sleep(ADMIN_ACTIONS_DEADLINE - 1)
-    with brownie.reverts("dev: insufficient time"):
+    with brownie.reverts():  # dev: insufficient time
         peg_keeper.apply_new_admin({"from": alice})
 
 
@@ -105,7 +105,7 @@ def test_apply_new_admin_no_active(peg_keeper, admin, alice):
     chain.sleep(ADMIN_ACTIONS_DEADLINE)
     peg_keeper.apply_new_admin({"from": alice})
 
-    with brownie.reverts("dev: no active action"):
+    with brownie.reverts():  # dev: no active action
         peg_keeper.apply_new_admin({"from": alice})
 
 
@@ -118,7 +118,7 @@ def test_revert_new_admin(peg_keeper, admin, alice):
 
 def test_revert_new_admin_only_admin(peg_keeper, admin, alice):
     peg_keeper.commit_new_admin(alice, {"from": admin})
-    with brownie.reverts("dev: only admin"):
+    with brownie.reverts():  # dev: only admin
         peg_keeper.revert_new_staff({"from": alice})
 
 
@@ -141,7 +141,7 @@ def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
 
 
 def test_commit_new_receiver_access(peg_keeper, alice):
-    with brownie.reverts("dev: only admin"):
+    with brownie.reverts():  # dev: only admin
         peg_keeper.commit_new_receiver(alice, {"from": alice})
 
 
@@ -158,12 +158,12 @@ def test_apply_new_receiver(peg_keeper, admin, alice):
 def test_apply_new_receiver_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
     chain.sleep(ADMIN_ACTIONS_DEADLINE - 1)
-    with brownie.reverts("dev: insufficient time"):
+    with brownie.reverts():  # dev: insufficient time
         peg_keeper.apply_new_receiver({"from": admin})
 
 
 def test_apply_new_receiver_no_active(peg_keeper, alice):
-    with brownie.reverts("dev: no active action"):
+    with brownie.reverts():  # dev: no active action
         peg_keeper.apply_new_receiver({"from": alice})
 
 
@@ -176,7 +176,7 @@ def test_revert_new_receiver(peg_keeper, admin, alice):
 
 def test_revert_new_receiver_only_admin(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
-    with brownie.reverts("dev: only admin"):
+    with brownie.reverts():  # dev: only admin
         peg_keeper.revert_new_staff({"from": alice})
 
 
@@ -194,7 +194,7 @@ def test_commit_already_active(peg_keeper, admin, alice, action0, action1):
     else:
         peg_keeper.commit_new_receiver(alice, {"from": admin})
 
-    with brownie.reverts("dev: active action"):
+    with brownie.reverts():  # dev: active action
         if action1 == "commit_new_admin":
             peg_keeper.commit_new_admin(alice, {"from": admin})
         else:

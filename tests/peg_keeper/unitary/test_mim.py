@@ -83,7 +83,7 @@ def test_commit_new_pegged_admin(peg_keeper, admin, bob):
     assert peg_keeper.pegged_admin() == admin
     assert peg_keeper.future_pegged_admin() == bob
 
-    with brownie.reverts("dev: only pegged admin"):
+    with brownie.reverts():  # dev: only pegged admin
         peg_keeper.commit_new_pegged_admin(bob, {"from": bob})
 
 
@@ -92,18 +92,18 @@ def test_new_pegged_admin(
 ):
     peg_keeper.commit_new_pegged_admin(bob, {"from": admin})
 
-    with brownie.reverts("dev: only new pegged admin"):
+    with brownie.reverts():  # dev: only new pegged admin
         peg_keeper.apply_new_pegged_admin({"from": admin})
     peg_keeper.apply_new_pegged_admin({"from": bob})
     assert peg_keeper.pegged_admin() == bob
     assert peg_keeper.future_pegged_admin() == bob
 
     # Only pegged admin
-    with brownie.reverts("dev: only pegged admin"):
+    with brownie.reverts():  # dev: only pegged admin
         peg_keeper.commit_new_pegged_admin(admin, {"from": admin})
     amount = pegged.balanceOf(peg_keeper)
     assert amount > 0
-    with brownie.reverts("dev: only pegged admin"):
+    with brownie.reverts():  # dev: only pegged admin
         peg_keeper.withdraw_pegged(amount, admin, {"from": admin})
     peg_keeper.withdraw_pegged(amount, {"from": bob})
 

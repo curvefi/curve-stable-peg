@@ -82,6 +82,18 @@ def __init__(_pool: address, _receiver: address, _caller_share: uint256):
     self.caller_share = _caller_share
 
 
+@pure
+@external
+def pegged() -> address:
+    return PEGGED
+
+
+@pure
+@external
+def pool() -> address:
+    return POOL
+
+
 @internal
 def _provide(_amount: uint256):
     ERC20Pegged(PEGGED).mint(self, _amount)

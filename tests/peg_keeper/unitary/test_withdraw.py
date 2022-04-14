@@ -101,7 +101,7 @@ def test_almost_balanced(
 ):
     swap.add_liquidity([10 ** 18, 0], 0, {"from": alice})
     set_fees(1 * 10 ** 6, 0)
-    with brownie.reverts("dev: peg was unprofitable"):
+    with brownie.reverts():  # dev: peg was unprofitable
         peg_keeper.update({"from": peg_keeper_updater})
 
 

@@ -36,7 +36,7 @@ def test_unprofitable_peg(
 
     set_fees(10 ** 9, 0)
 
-    with brownie.reverts("dev: peg was unprofitable"):
+    with brownie.reverts():  # dev: peg was unprofitable
         peg_keeper.update({"from": alice})
 
 
