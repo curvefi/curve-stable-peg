@@ -44,8 +44,9 @@ PRECISION: constant(uint256) = 10 ** 18
 # Calculation error for profit
 PROFIT_THRESHOLD: constant(uint256) = 10 ** 18
 
-PEGGED: immutable(address)
 POOL: immutable(address)
+I: immutable(uint256)  # index of pegged in pool
+PEGGED: immutable(address)
 
 last_change: public(uint256)
 debt: public(uint256)
@@ -64,15 +65,17 @@ admin_actions_deadline: public(uint256)
 
 
 @external
-def __init__(_pool: address, _receiver: address, _caller_share: uint256):
+def __init__(_pool: address, _index: uint256, _receiver: address, _caller_share: uint256):
     """
     @notice Contract constructor
     @param _pool Contract pool address
+    @param _index Index of the pegged
     @param _receiver Receiver of the profit
     @param _caller_share Caller's share of profit
     """
     POOL = _pool
-    pegged: address = CurvePool(_pool).coins(0)
+    I = _index
+    pegged: address = CurvePool(_pool).coins(_index)
     PEGGED = pegged
     ERC20Pegged(pegged).approve(_pool, MAX_UINT256)
 
@@ -98,7 +101,9 @@ def pool() -> address:
 def _provide(_amount: uint256):
     ERC20Pegged(PEGGED).mint(self, _amount)
 
-    CurvePool(POOL).add_liquidity([_amount, 0], 0)
+    amounts: uint256[2] = empty(uint256[2])
+    amounts[I] = _amount
+    CurvePool(POOL).add_liquidity(amounts, 0)
 
     self.last_change = block.timestamp
     self.debt += _amount
@@ -112,7 +117,9 @@ def _withdraw(_amount: uint256):
     if amount > debt:
         amount = debt
 
-    CurvePool(POOL).remove_liquidity_imbalance([amount, 0], MAX_UINT256)
+    amounts: uint256[2] = empty(uint256[2])
+    amounts[I] = amount
+    CurvePool(POOL).remove_liquidity_imbalance(amounts, MAX_UINT256)
 
     self.last_change = block.timestamp
     self.debt -= amount
@@ -155,8 +162,8 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     if self.last_change + ACTION_DELAY > block.timestamp:
         return 0
 
-    balance_pegged: uint256 = CurvePool(POOL).balances(0)
-    balance_peg: uint256 = CurvePool(POOL).balances(1)
+    balance_pegged: uint256 = CurvePool(POOL).balances(I)
+    balance_peg: uint256 = CurvePool(POOL).balances(1 - I)
 
     initial_profit: uint256 = self._calc_profit()
 

@@ -144,6 +144,7 @@ def peg_keeper(
     abi = next(i["inputs"] for i in peg_keeper.abi if i["type"] == "constructor")
     args = {
         "_pool": swap,
+        "_i": 0,
         "_receiver": receiver,
         "_min_asymmetry": 2,
         "_caller_share": 2 * 10 ** 4,
