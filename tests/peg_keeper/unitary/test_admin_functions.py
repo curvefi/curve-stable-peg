@@ -34,12 +34,6 @@ def test_update_access(
     peg_keeper.update({"from": peg_keeper_updater})
 
 
-@pytest.mark.template
-def test_update_no_access(peg_keeper, bob):
-    with brownie.reverts():  # dev: callable only by the pool
-        peg_keeper.update({"from": bob})
-
-
 def test_set_new_caller_share(peg_keeper, admin):
     new_caller_share = 5e4
     peg_keeper.set_new_caller_share(new_caller_share, {"from": admin})

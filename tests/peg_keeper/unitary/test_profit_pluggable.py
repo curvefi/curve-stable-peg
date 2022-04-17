@@ -23,7 +23,7 @@ def test_profit_receiver(
 
 
 def test_unprofitable_peg(
-    swap, decimals, pegged, peg_keeper, alice, imbalance_pool, set_fees
+    swap, decimals, pegged, peg_keeper, alice, imbalance_pool, set_fees, chain
 ):
     # Leave a little of debt
     little = 10 * 10 ** decimals[0]
@@ -32,11 +32,12 @@ def test_unprofitable_peg(
 
     # Imbalance so it should give all
     able_to_add = pegged.balanceOf(peg_keeper)
-    imbalance_pool(1, 5 * able_to_add + swap.balances(0) - swap.balances(1))
+    imbalance_pool(1, 5 * able_to_add, add_diff=True)
 
-    set_fees(10 ** 9, 0)
+    set_fees(10 ** 9)
 
     with brownie.reverts():  # dev: peg was unprofitable
+        chain.sleep(15 * 60)
         peg_keeper.update({"from": alice})
 
 

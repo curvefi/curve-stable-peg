@@ -160,7 +160,7 @@ def test_withdraw_profit(
     alice,
     always_withdraw,
 ):
-    set_fees(4 * 10 ** 7, 0)
+    set_fees(4 * 10 ** 7)
 
     state_machine(
         StateMachine,

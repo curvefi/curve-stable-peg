@@ -64,6 +64,12 @@ def approve(_spender : address, _value : uint256) -> bool:
     return True
 
 
+@view
+@external
+def get_virtual_price() -> uint256:
+    return 11 * 10 ** 17
+
+
 @external
 def _mint_for_testing(_target: address, _value: uint256) -> bool:
     self.total_supply += _value

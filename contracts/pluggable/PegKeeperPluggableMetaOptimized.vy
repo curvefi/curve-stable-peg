@@ -173,9 +173,9 @@ def update(_beneficiary: address = msg.sender) -> uint256:
     balance_peg: uint256 = CurvePool(POOL).balances(1 - I)
     virtual_price: uint256 = CurvePool(METAPOOL).get_virtual_price()
     if I == META_I:
-        balance_peg = balance_peg * virtual_price / PRECISION
-    else:
         balance_peg = balance_peg * PRECISION / virtual_price
+    else:
+        balance_peg = balance_peg * virtual_price / PRECISION
 
     initial_profit: uint256 = self._calc_profit()
 

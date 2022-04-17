@@ -13,7 +13,7 @@ pytestmark = pytest.mark.usefixtures(
 def make_profit(swap, peg, pegged, initial_amounts, alice, set_fees):
     def _inner(amount):
         """Amount to add to balances."""
-        set_fees(1 * 10 ** 9, 0)
+        set_fees(1 * 10 ** 9)
         exchange_amount = amount * 5
 
         peg.approve(swap, exchange_amount, {"from": alice})
@@ -21,7 +21,7 @@ def make_profit(swap, peg, pegged, initial_amounts, alice, set_fees):
 
         pegged.approve(swap, exchange_amount, {"from": alice})
         swap.exchange(1, 0, exchange_amount, 0, {"from": alice})
-        set_fees(0, 0)
+        set_fees(0)
 
     return _inner
 
@@ -64,6 +64,7 @@ def test_withdraw_profit(
     peg_keeper_updater,
     balance_change_after_withdraw,
     donate_fee,
+    peg_keeper_name,
 ):
     """Withdraw profit and update for the whole debt."""
     make_profit(donate_fee)
@@ -74,7 +75,10 @@ def test_withdraw_profit(
     assert profit == swap.balanceOf(receiver)
 
     debt = peg_keeper.debt()
-    amount = 5 * debt + swap.balances(1) - swap.balances(0)
+    if "meta" in peg_keeper_name:
+        amount = 5 * debt + swap.balances(1) * 11 // 10 - swap.balances(0)
+    else:
+        amount = 5 * debt + swap.balances(1) - swap.balances(0)
     pegged._mint_for_testing(alice, amount, {"from": alice})
     pegged.approve(swap, amount, {"from": alice})
     swap.add_liquidity([amount, 0], 0, {"from": alice})

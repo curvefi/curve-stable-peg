@@ -15,6 +15,7 @@ pytest_plugins = [
 # Metadata of each peg keeper
 _contracts = {
     "pluggable-optimized": "PegKeeperPluggableOptimized",
+    "pluggable-meta-optimized": "PegKeeperPluggableMetaOptimized",
     "mim": "PegKeeperMim",
 }
 
@@ -117,21 +118,32 @@ def peg_keeper_name(request):
 
 
 @pytest.fixture(scope="module")
-def swap(StableSwap, coins, alice, is_forked):
+def swap(StableSwap, StableSwapMeta, coins, alice, peg_keeper_name, is_forked):
     if is_forked:
         yield Contract(
             "0x5a6A4D54456819380173272A5E8E9B9904BdF41B"
         )  # MIM Pool Swap Address
     else:
-        yield StableSwap.deploy(
-            "Test",  # name
-            "TEST",  # symbol
-            coins + [ZERO_ADDRESS] * 2,  # coins[4]
-            [10 ** 18] * 4,  # rate_multipliers[4]
-            200 * 2,  # A
-            0,  # fee
-            {"from": alice},
-        )
+        if "meta" in peg_keeper_name:
+            yield StableSwapMeta.deploy(
+                "Test",  # name
+                "TEST",  # symbol
+                coins,  # coins[2]
+                10 ** 18,  # rate_multiplier
+                200 * 2,  # A
+                0,  # fee
+                {"from": alice},
+            )
+        else:
+            yield StableSwap.deploy(
+                "Test",  # name
+                "TEST",  # symbol
+                coins + [ZERO_ADDRESS] * 2,  # coins[4]
+                [10 ** 18] * 4,  # rate_multipliers[4]
+                200 * 2,  # A
+                0,  # fee
+                {"from": alice},
+            )
 
 
 @pytest.fixture(scope="module")
@@ -144,9 +156,9 @@ def peg_keeper(
     abi = next(i["inputs"] for i in peg_keeper.abi if i["type"] == "constructor")
     args = {
         "_pool": swap,
-        "_i": 0,
+        "_index": 0,
+        "_meta_index": 1,
         "_receiver": receiver,
-        "_min_asymmetry": 2,
         "_caller_share": 2 * 10 ** 4,
     }
 

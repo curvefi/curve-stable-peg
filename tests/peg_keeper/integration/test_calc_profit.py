@@ -135,7 +135,7 @@ def test_profit_increases(
     peg_keeper,
     admin,
 ):
-    set_fees(4 * 10 ** 7, 0)
+    set_fees(4 * 10 ** 7)
 
     state_machine(
         StateMachine,
