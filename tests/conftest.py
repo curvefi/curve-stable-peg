@@ -14,8 +14,8 @@ pytest_plugins = [
 
 # Metadata of each peg keeper
 _contracts = {
-    "pluggable-optimized": "PegKeeperPluggableOptimized",
-    "pluggable-meta-optimized": "PegKeeperPluggableMetaOptimized",
+    "pluggable-optimized": "PegKeeperOptimized",
+    "pluggable-meta-optimized": "PegKeeperMetaOptimized",
     "mim": "PegKeeperMim",
 }
 

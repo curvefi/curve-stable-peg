@@ -29,6 +29,7 @@ class StateMachine:
         decimals,
         receiver,
         always_withdraw,
+        peg_keeper_name,
     ):
         cls.alice = alice
         cls.swap = swap
@@ -37,6 +38,7 @@ class StateMachine:
         cls.decimals = decimals
         cls.receiver = receiver
         cls.always_withdraw = always_withdraw
+        cls.is_meta = "meta" in peg_keeper_name
 
     def setup(self):
         # Needed in withdraw profit check
@@ -126,14 +128,20 @@ class StateMachine:
         self.rule_withdraw_profit()
 
         debt = self.peg_keeper.debt()
-        amount = 5 * (debt + 1) + self.swap.balances(1) - self.swap.balances(0)
+        if self.is_meta:
+            amount = 5 * (debt + 1) + self.swap.balances(1) * 11 // 10 - self.swap.balances(0)
+        else:
+            amount = 5 * (debt + 1) + self.swap.balances(1) - self.swap.balances(0)
         self.pegged._mint_for_testing(self.alice, amount, {"from": self.alice})
         self.swap.add_liquidity([amount, 0], 0, {"from": self.alice})
 
         chain.sleep(15 * 60)
         if self._manual_update():
             assert self.peg_keeper.debt() == 0
-            assert self.swap.balances(1) == self.swap.balances(0) - 4 * debt - 5
+            if self.is_meta:
+                assert self.swap.balances(1) * 11 // 10 == pytest.approx(self.swap.balances(0) - 4 * debt - 5, abs=10)
+            else:
+                assert self.swap.balances(1) == self.swap.balances(0) - 4 * debt - 5
 
         # withdraw_profit, mint, add_liquidity
         chain.undo(2 if self.always_withdraw else 3)
@@ -159,6 +167,7 @@ def test_withdraw_profit(
     receiver,
     alice,
     always_withdraw,
+    peg_keeper_name,
 ):
     set_fees(4 * 10 ** 7)
 
@@ -171,5 +180,6 @@ def test_withdraw_profit(
         decimals,
         receiver,
         always_withdraw,
+        peg_keeper_name,
         settings={"max_examples": 10, "stateful_step_count": 10},
     )
