@@ -118,6 +118,7 @@ def provide_token_to_peg_keeper(
     peg_keeper,
     initial_amounts,
     equal_balances,
+    peg_keeper_name,
 ):
     """Add 5x of peg, so Peg Keeper mints x, then remove 4x, so pool is balanced."""
     equal_balances()
@@ -133,7 +134,10 @@ def provide_token_to_peg_keeper(
 
     peg_keeper.update({"from": peg_keeper_updater})
 
-    remove_amount = swap.balances(1) - swap.balances(0) * 10 // 11
+    if "meta" in peg_keeper_name:
+        remove_amount = swap.balances(1) - swap.balances(0) * 10 // 11
+    else:
+        remove_amount = swap.balances(1) - swap.balances(0)
     swap.remove_liquidity_imbalance(
         [0, remove_amount],
         2 ** 256 - 1,
