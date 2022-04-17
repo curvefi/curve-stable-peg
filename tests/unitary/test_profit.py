@@ -1,5 +1,5 @@
-import pytest
 import brownie
+import pytest
 from brownie.test import given, strategy
 
 pytestmark = pytest.mark.usefixtures(
@@ -14,7 +14,7 @@ pytestmark = pytest.mark.usefixtures(
 def make_profit(swap, peg, pegged, initial_amounts, alice, set_fees):
     def _inner(amount):
         """Amount to add to balances."""
-        set_fees(1 * 10 ** 9)
+        set_fees(1 * 10**9)
         exchange_amount = amount * 5
 
         peg.approve(swap, exchange_amount, {"from": alice})
@@ -35,24 +35,24 @@ def test_calc_initial_profit(peg_keeper, swap):
     """Peg Keeper always generate profit, including first mint."""
     debt = peg_keeper.debt()
     assert debt / swap.get_virtual_price() < swap.balanceOf(peg_keeper)
-    aim_profit = swap.balanceOf(peg_keeper) - debt * 10 ** 18 / swap.get_virtual_price()
+    aim_profit = swap.balanceOf(peg_keeper) - debt * 10**18 / swap.get_virtual_price()
     assert aim_profit > peg_keeper.calc_profit() > 0
 
 
-@given(donate_fee=strategy("int", min_value=1, max_value=10 ** 20))
+@given(donate_fee=strategy("int", min_value=1, max_value=10**20))
 def test_calc_profit(peg_keeper, swap, make_profit, donate_fee):
     make_profit(donate_fee)
 
     profit = peg_keeper.calc_profit()
     virtual_price = swap.get_virtual_price()
     aim_profit = (
-        swap.balanceOf(peg_keeper) - peg_keeper.debt() * 10 ** 18 // virtual_price
+        swap.balanceOf(peg_keeper) - peg_keeper.debt() * 10**18 // virtual_price
     )
     assert aim_profit >= profit  # Never take more than real profit
     assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
 
 
-@given(donate_fee=strategy("int", min_value=1, max_value=10 ** 20))
+@given(donate_fee=strategy("int", min_value=1, max_value=10**20))
 def test_withdraw_profit(
     peg_keeper,
     swap,
@@ -126,14 +126,14 @@ def test_unprofitable_peg(
     able_to_add = pegged.balanceOf(peg_keeper)
     imbalance_pool(1, 5 * able_to_add, add_diff=True)
 
-    set_fees(10 ** 9)
+    set_fees(10**9)
 
     with brownie.reverts():  # dev: peg was unprofitable
         chain.sleep(15 * 60)
         peg_keeper.update({"from": alice})
 
 
-@given(share=strategy("int", min_value=0, max_value=10 ** 5))
+@given(share=strategy("int", min_value=0, max_value=10**5))
 @pytest.mark.parametrize("coin_to_imbalance", [0, 1])
 def test_profit_share(
     peg_keeper, swap, bob, admin, coin_to_imbalance, imbalance_pool, share
@@ -148,4 +148,4 @@ def test_profit_share(
     receiver_profit = profit_after - profit_before
     caller_profit = swap.balanceOf(bob)
 
-    assert caller_profit == (receiver_profit + caller_profit) * share // 10 ** 5
+    assert caller_profit == (receiver_profit + caller_profit) * share // 10**5

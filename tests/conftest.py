@@ -129,7 +129,7 @@ def swap(StableSwap, StableSwapMeta, coins, alice, peg_keeper_name, is_forked):
                 "Test",  # name
                 "TEST",  # symbol
                 coins,  # coins[2]
-                10 ** 18,  # rate_multiplier
+                10**18,  # rate_multiplier
                 200 * 2,  # A
                 0,  # fee
                 {"from": alice},
@@ -139,7 +139,7 @@ def swap(StableSwap, StableSwapMeta, coins, alice, peg_keeper_name, is_forked):
                 "Test",  # name
                 "TEST",  # symbol
                 coins + [ZERO_ADDRESS] * 2,  # coins[4]
-                [10 ** 18] * 4,  # rate_multipliers[4]
+                [10**18] * 4,  # rate_multipliers[4]
                 200 * 2,  # A
                 0,  # fee
                 {"from": alice},
@@ -159,7 +159,7 @@ def peg_keeper(
         "_index": 0,
         "_meta_index": 1,
         "_receiver": receiver,
-        "_caller_share": 2 * 10 ** 4,
+        "_caller_share": 2 * 10**4,
     }
 
     contract = peg_keeper.deploy(*[args[i["name"]] for i in abi], {"from": admin})

@@ -8,7 +8,7 @@ pytestmark = pytest.mark.usefixtures(
 )
 
 
-@given(amount=strategy("uint256", min_value=10 ** 20, max_value=10 ** 24))
+@given(amount=strategy("uint256", min_value=10**20, max_value=10**24))
 def test_provide(
     swap,
     peg,
@@ -37,17 +37,13 @@ def test_provide(
     assert new_real_balances[1] == real_balances[1]
 
 
-def test_min_coin_amount(
-    swap, initial_amounts, alice, peg_keeper, peg_keeper_updater
-):
+def test_min_coin_amount(swap, initial_amounts, alice, peg_keeper, peg_keeper_updater):
     swap.add_liquidity([0, initial_amounts[1]], 0, {"from": alice})
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
 
 
-def test_almost_balanced(
-    swap, alice, peg_keeper, peg_keeper_updater
-):
-    swap.add_liquidity([0, 10 ** 18], 0, {"from": alice})
+def test_almost_balanced(swap, alice, peg_keeper, peg_keeper_updater):
+    swap.add_liquidity([0, 10**18], 0, {"from": alice})
     assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
 
 

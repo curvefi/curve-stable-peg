@@ -52,7 +52,7 @@ class StateMachine:
         """
         Remove liquidity from the pool in only one coin.
         """
-        token_amount = int(10 ** 18 * st_pct)
+        token_amount = int(10**18 * st_pct)
         self.swap.remove_liquidity_one_coin(
             token_amount, st_idx, 0, {"from": self.alice}
         )
@@ -66,14 +66,14 @@ class StateMachine:
             int(10 ** self.decimals[1] * amount_1),
         ]
         self.swap.remove_liquidity_imbalance(
-            amounts, 2 ** 256 - 1, {"from": self.alice}
+            amounts, 2**256 - 1, {"from": self.alice}
         )
 
     def rule_remove(self, st_pct):
         """
         Remove liquidity from the pool.
         """
-        amount = int(10 ** 18 * st_pct)
+        amount = int(10**18 * st_pct)
         self.swap.remove_liquidity(amount, [0] * 2, {"from": self.alice})
 
     def rule_exchange(self, st_idx, st_pct):
@@ -94,7 +94,7 @@ class StateMachine:
     def _manual_update(self) -> bool:
         try:
             self.peg_keeper.update({"from": self.alice})
-        except VirtualMachineError as e:
+        except VirtualMachineError:
             # assert e.revert_msg in [
             #     "dev: peg was unprofitable",
             #     "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
@@ -112,7 +112,7 @@ class StateMachine:
         virtual_price = self.swap.get_virtual_price()
         aim_profit = (
             self.swap.balanceOf(self.peg_keeper)
-            - self.peg_keeper.debt() * 10 ** 18 // virtual_price
+            - self.peg_keeper.debt() * 10**18 // virtual_price
         )
         assert aim_profit >= profit  # Never take more than real profit
         assert aim_profit - profit < 2e18  # Error less than 2 LP Tokens
@@ -135,7 +135,7 @@ def test_profit_increases(
     peg_keeper,
     admin,
 ):
-    set_fees(4 * 10 ** 7)
+    set_fees(4 * 10**7)
 
     state_machine(
         StateMachine,

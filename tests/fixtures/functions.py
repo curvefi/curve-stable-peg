@@ -1,5 +1,5 @@
 import pytest
-from brownie import ZERO_ADDRESS, chain
+from brownie import chain
 
 # ------------------------------ Coins functions -------------------------------
 
@@ -23,7 +23,9 @@ def equal_balances(swap, peg_keeper_name):
         assert swap.balances(0) == swap.balances(1)
 
     def meta():
-        assert int(swap.balances(0)) == pytest.approx(swap.balances(1) * 11 // 10, abs=10)
+        assert int(swap.balances(0)) == pytest.approx(
+            swap.balances(1) * 11 // 10, abs=10
+        )
 
     return meta if "meta" in peg_keeper_name else basic
 
@@ -140,7 +142,7 @@ def provide_token_to_peg_keeper(
         remove_amount = swap.balances(1) - swap.balances(0)
     swap.remove_liquidity_imbalance(
         [0, remove_amount],
-        2 ** 256 - 1,
+        2**256 - 1,
         {"from": alice},
     )
 
@@ -154,10 +156,15 @@ def balance_change_after_provide(swap, coins, peg_keeper_name):
         # diff should be positive
         if "meta" in peg_keeper_name:
             assert swap.balances(0) + (diff - diff // 5) == swap.balances(1) * 11 // 10
-            assert coins[0].balanceOf(swap) + (diff - diff // 5) == coins[1].balanceOf(swap) * 11 // 10
+            assert (
+                coins[0].balanceOf(swap) + (diff - diff // 5)
+                == coins[1].balanceOf(swap) * 11 // 10
+            )
         else:
             assert swap.balances(0) + (diff - diff // 5) == swap.balances(1)
-            assert coins[0].balanceOf(swap) + (diff - diff // 5) == coins[1].balanceOf(swap)
+            assert coins[0].balanceOf(swap) + (diff - diff // 5) == coins[1].balanceOf(
+                swap
+            )
 
     return _inner
 
@@ -168,9 +175,14 @@ def balance_change_after_withdraw(swap, coins, peg_keeper_name):
         # diff should be positive
         if "meta" in peg_keeper_name:
             assert swap.balances(0) - (diff - diff // 5) == swap.balances(1) * 11 // 10
-            assert coins[0].balanceOf(swap) - (diff - diff // 5) == coins[1].balanceOf(swap) * 11 // 10
+            assert (
+                coins[0].balanceOf(swap) - (diff - diff // 5)
+                == coins[1].balanceOf(swap) * 11 // 10
+            )
         else:
             assert swap.balances(0) - (diff - diff // 5) == swap.balances(1)
-            assert coins[0].balanceOf(swap) - (diff - diff // 5) == coins[1].balanceOf(swap)
+            assert coins[0].balanceOf(swap) - (diff - diff // 5) == coins[1].balanceOf(
+                swap
+            )
 
     return _inner

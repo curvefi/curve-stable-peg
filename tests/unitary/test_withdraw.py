@@ -1,6 +1,5 @@
 import brownie
 import pytest
-from brownie import ZERO_ADDRESS
 from brownie.test import given, strategy
 
 pytestmark = pytest.mark.usefixtures(
@@ -11,7 +10,7 @@ pytestmark = pytest.mark.usefixtures(
 )
 
 
-@given(amount=strategy("uint256", min_value=10 ** 20, max_value=10 ** 24))
+@given(amount=strategy("uint256", min_value=10**20, max_value=10**24))
 def test_withdraw(
     swap,
     peg,
@@ -84,7 +83,7 @@ def test_withdraw_dust_debt(
     balance_change_after_withdraw(amount)
 
     remove_amount = swap.balances(0) - swap.balances(1)
-    swap.remove_liquidity_imbalance([remove_amount, 0], 2 ** 256 - 1, {"from": alice})
+    swap.remove_liquidity_imbalance([remove_amount, 0], 2**256 - 1, {"from": alice})
     assert swap.balances(0) == swap.balances(1)
 
     # Does not withdraw anything
@@ -99,8 +98,8 @@ def test_almost_balanced(
     peg_keeper_updater,
     set_fees,
 ):
-    swap.add_liquidity([10 ** 18, 0], 0, {"from": alice})
-    set_fees(1 * 10 ** 6)
+    swap.add_liquidity([10**18, 0], 0, {"from": alice})
+    set_fees(1 * 10**6)
     with brownie.reverts():  # dev: peg was unprofitable
         peg_keeper.update({"from": peg_keeper_updater})
 

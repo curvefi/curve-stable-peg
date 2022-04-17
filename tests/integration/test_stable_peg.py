@@ -73,7 +73,7 @@ class StateMachine:
         Remove liquidity from the pool in only one coin.
         """
         amounts = [0, 0]
-        token_amount = int(10 ** 18 * st_pct)
+        token_amount = int(10**18 * st_pct)
         amounts[st_idx] = self.swap.remove_liquidity_one_coin(
             token_amount, st_idx, 0, {"from": self.alice}
         ).return_value
@@ -88,7 +88,7 @@ class StateMachine:
             int(10 ** self.decimals[1] * amount_1),
         ]
         self.swap.remove_liquidity_imbalance(
-            amounts, 2 ** 256 - 1, {"from": self.alice}
+            amounts, 2**256 - 1, {"from": self.alice}
         )
         self._update_balances(amounts, True)
 
@@ -96,7 +96,7 @@ class StateMachine:
         """
         Remove liquidity from the pool.
         """
-        amount = int(10 ** 18 * st_pct)
+        amount = int(10**18 * st_pct)
         amounts = self.swap.remove_liquidity(
             amount, [0] * 2, {"from": self.alice}
         ).return_value
@@ -116,7 +116,7 @@ class StateMachine:
     def _manual_update(self) -> bool:
         try:
             self.peg_keeper.update({"from": self.alice})
-        except VirtualMachineError as e:
+        except VirtualMachineError:
             # assert e.revert_msg in [
             #     "dev: peg was unprofitable",
             #     "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
@@ -158,7 +158,7 @@ def test_always_peg(
     admin,
     min_asymmetry,
 ):
-    set_fees(4 * 10 ** 7)
+    set_fees(4 * 10**7)
 
     state_machine(
         StateMachine,

@@ -42,7 +42,7 @@ class StateMachine:
 
     def setup(self):
         # Needed in withdraw profit check
-        self.pegged.approve(self.swap, 2 ** 256 - 1, {"from": self.alice})
+        self.pegged.approve(self.swap, 2**256 - 1, {"from": self.alice})
 
     def rule_add_one_coin(self, st_idx, st_pct):
         """
@@ -66,7 +66,7 @@ class StateMachine:
         """
         Remove liquidity from the pool in only one coin.
         """
-        token_amount = int(10 ** 18 * st_pct)
+        token_amount = int(10**18 * st_pct)
         self.swap.remove_liquidity_one_coin(
             token_amount, st_idx, 0, {"from": self.alice}
         )
@@ -80,14 +80,14 @@ class StateMachine:
             int(10 ** self.decimals[1] * amount_1),
         ]
         self.swap.remove_liquidity_imbalance(
-            amounts, 2 ** 256 - 1, {"from": self.alice}
+            amounts, 2**256 - 1, {"from": self.alice}
         )
 
     def rule_remove(self, st_pct):
         """
         Remove liquidity from the pool.
         """
-        amount = int(10 ** 18 * st_pct)
+        amount = int(10**18 * st_pct)
         self.swap.remove_liquidity(amount, [0] * 2, {"from": self.alice})
 
     def rule_exchange(self, st_idx, st_pct):
@@ -112,7 +112,7 @@ class StateMachine:
     def _manual_update(self) -> bool:
         try:
             self.peg_keeper.update({"from": self.alice})
-        except VirtualMachineError as e:
+        except VirtualMachineError:
             # assert e.revert_msg in [
             #     "dev: peg was unprofitable",
             #     "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
@@ -129,7 +129,11 @@ class StateMachine:
 
         debt = self.peg_keeper.debt()
         if self.is_meta:
-            amount = 5 * (debt + 1) + self.swap.balances(1) * 11 // 10 - self.swap.balances(0)
+            amount = (
+                5 * (debt + 1)
+                + self.swap.balances(1) * 11 // 10
+                - self.swap.balances(0)
+            )
         else:
             amount = 5 * (debt + 1) + self.swap.balances(1) - self.swap.balances(0)
         self.pegged._mint_for_testing(self.alice, amount, {"from": self.alice})
@@ -139,7 +143,9 @@ class StateMachine:
         if self._manual_update():
             assert self.peg_keeper.debt() == 0
             if self.is_meta:
-                assert self.swap.balances(1) * 11 // 10 == pytest.approx(self.swap.balances(0) - 4 * debt - 5, abs=10)
+                assert self.swap.balances(1) * 11 // 10 == pytest.approx(
+                    self.swap.balances(0) - 4 * debt - 5, abs=10
+                )
             else:
                 assert self.swap.balances(1) == self.swap.balances(0) - 4 * debt - 5
 
@@ -169,7 +175,7 @@ def test_withdraw_profit(
     always_withdraw,
     peg_keeper_name,
 ):
-    set_fees(4 * 10 ** 7)
+    set_fees(4 * 10**7)
 
     state_machine(
         StateMachine,
