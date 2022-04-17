@@ -1,9 +1,9 @@
-# @version 0.2.15
+# @version 0.3.1
 """
 @title StableSwap
 @author Curve.Fi
 @license Copyright (c) Curve.Fi, 2020-2021 - all rights reserved
-@notice 2 coin pool implementation with no lending (for testing)
+@notice 2 coin pool implementation with no lending
 @dev ERC20 support for return True/revert, return True/False, return None
 """
 
@@ -13,6 +13,9 @@ interface Factory:
     def convert_fees() -> bool: nonpayable
     def get_fee_receiver(_pool: address) -> address: view
     def admin() -> address: view
+
+interface ERC1271:
+    def isValidSignature(_hash: bytes32, _signature: Bytes[65]) -> bytes32: view
 
 
 event Transfer:
@@ -73,19 +76,26 @@ N_COINS: constant(int128) = 2
 PRECISION: constant(uint256) = 10 ** 18
 
 FEE_DENOMINATOR: constant(uint256) = 10 ** 10
-ADMIN_FEE: constant(uint256) = 0
+ADMIN_FEE: constant(uint256) = 0  # 5000000000
 
 A_PRECISION: constant(uint256) = 100
 MAX_A: constant(uint256) = 10 ** 6
 MAX_A_CHANGE: constant(uint256) = 10
 MIN_RAMP_TIME: constant(uint256) = 86400
 
+EIP712_TYPEHASH: constant(bytes32) = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+
+# keccak256("isValidSignature(bytes32,bytes)")[:4] << 224
+ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
+VERSION: constant(String[8]) = "v5.0.0"
+
+
 factory: address
 
 coins: public(address[N_COINS])
 balances: public(uint256[N_COINS])
 fee: public(uint256)  # fee * 1e10
-future_fee: public(uint256)
 
 initial_A: public(uint256)
 future_A: public(uint256)
@@ -101,6 +111,9 @@ balanceOf: public(HashMap[address, uint256])
 allowance: public(HashMap[address, HashMap[address, uint256]])
 totalSupply: public(uint256)
 
+DOMAIN_SEPARATOR: public(bytes32)
+nonces: public(HashMap[address, uint256])
+
 
 @external
 def __init__(
@@ -115,11 +128,14 @@ def __init__(
     @notice Contract constructor
     @param _name Name of the new pool
     @param _symbol Token symbol
-    @param _coins List of all ERC20 contract addresses of coins
+    @param _coins List of all ERC20 conract addresses of coins
     @param _rate_multipliers List of number of decimals in coins
     @param _A Amplification coefficient multiplied by n ** (n - 1)
     @param _fee Fee to charge for exchanges
     """
+    # check if fee was already set to prevent initializing contract twice
+    assert self.fee == 0
+
     for i in range(N_COINS):
         coin: address = _coins[i]
         if coin == ZERO_ADDRESS:
@@ -133,8 +149,13 @@ def __init__(
     self.fee = _fee
     self.factory = msg.sender
 
-    self.name = concat("Curve.fi Factory Plain Pool: ", _name)
+    name: String[64] = concat("Curve.fi Factory Plain Pool: ", _name)
+    self.name = name
     self.symbol = concat(_symbol, "-f")
+
+    self.DOMAIN_SEPARATOR = keccak256(
+        _abi_encode(EIP712_TYPEHASH, keccak256(name), keccak256(VERSION), chain.id, self)
+    )
 
     # fire a transfer event so block explorers identify the contract as an ERC20
     log Transfer(ZERO_ADDRESS, self, 0)
@@ -206,6 +227,57 @@ def approve(_spender : address, _value : uint256) -> bool:
     self.allowance[msg.sender][_spender] = _value
 
     log Approval(msg.sender, _spender, _value)
+    return True
+
+
+@external
+def permit(
+    _owner: address,
+    _spender: address,
+    _value: uint256,
+    _deadline: uint256,
+    _v: uint8,
+    _r: bytes32,
+    _s: bytes32
+) -> bool:
+    """
+    @notice Approves spender by owner's signature to expend owner's tokens.
+        See https://eips.ethereum.org/EIPS/eip-2612.
+    @dev Inspired by https://github.com/yearn/yearn-vaults/blob/main/contracts/Vault.vy#L753-L793
+    @dev Supports smart contract wallets which implement ERC1271
+        https://eips.ethereum.org/EIPS/eip-1271
+    @param _owner The address which is a source of funds and has signed the Permit.
+    @param _spender The address which is allowed to spend the funds.
+    @param _value The amount of tokens to be spent.
+    @param _deadline The timestamp after which the Permit is no longer valid.
+    @param _v The bytes[64] of the valid secp256k1 signature of permit by owner
+    @param _r The bytes[0:32] of the valid secp256k1 signature of permit by owner
+    @param _s The bytes[32:64] of the valid secp256k1 signature of permit by owner
+    @return True, if transaction completes successfully
+    """
+    assert _owner != ZERO_ADDRESS
+    assert block.timestamp <= _deadline
+
+    nonce: uint256 = self.nonces[_owner]
+    digest: bytes32 = keccak256(
+        concat(
+            b"\x19\x01",
+            self.DOMAIN_SEPARATOR,
+            keccak256(_abi_encode(PERMIT_TYPEHASH, _owner, _spender, _value, nonce, _deadline))
+        )
+    )
+
+    if _owner.is_contract:
+        sig: Bytes[65] = concat(_abi_encode(_r, _s), slice(convert(_v, bytes32), 31, 1))
+        # reentrancy not a concern since this is a staticcall
+        assert ERC1271(_owner).isValidSignature(digest, sig) == ERC1271_MAGIC_VAL
+    else:
+        assert ecrecover(digest, convert(_v, uint256), convert(_r, uint256), convert(_s, uint256)) == _owner
+
+    self.allowance[_owner][_spender] = _value
+    self.nonces[_owner] = nonce + 1
+
+    log Approval(_owner, _spender, _value)
     return True
 
 
@@ -896,11 +968,15 @@ def withdraw_admin_fees():
         )
 
 
+@pure
 @external
-def commit_new_fee(_new_fee: uint256, _new_admin_fee: uint256):
-    self.future_fee = _new_fee
+def version() -> String[8]:
+    """
+    @notice Get the version of this token contract
+    """
+    return VERSION
 
 
 @external
-def apply_new_fee():
-    self.fee = self.future_fee
+def set_new_fee(_fee: uint256):
+    self.fee = _fee
