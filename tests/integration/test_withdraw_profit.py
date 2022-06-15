@@ -6,7 +6,6 @@ from brownie.test import strategy
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
     "provide_token_to_peg_keeper",
-    "set_peg_keeper",
     "mint_alice",
     "approve_alice",
 )
@@ -30,7 +29,7 @@ class StateMachine:
         decimals,
         receiver,
         always_withdraw,
-        peg_keeper_type,
+        peg_keeper_name,
     ):
         cls.alice = alice
         cls.swap = swap
@@ -39,11 +38,11 @@ class StateMachine:
         cls.decimals = decimals
         cls.receiver = receiver
         cls.always_withdraw = always_withdraw
-        cls.type = peg_keeper_type
+        cls.is_meta = "meta" in peg_keeper_name
 
     def setup(self):
         # Needed in withdraw profit check
-        self.pegged.approve(self.swap, 2 ** 256 - 1, {"from": self.alice})
+        self.pegged.approve(self.swap, 2**256 - 1, {"from": self.alice})
 
     def rule_add_one_coin(self, st_idx, st_pct):
         """
@@ -67,7 +66,7 @@ class StateMachine:
         """
         Remove liquidity from the pool in only one coin.
         """
-        token_amount = int(10 ** 18 * st_pct)
+        token_amount = int(10**18 * st_pct)
         self.swap.remove_liquidity_one_coin(
             token_amount, st_idx, 0, {"from": self.alice}
         )
@@ -81,14 +80,14 @@ class StateMachine:
             int(10 ** self.decimals[1] * amount_1),
         ]
         self.swap.remove_liquidity_imbalance(
-            amounts, 2 ** 256 - 1, {"from": self.alice}
+            amounts, 2**256 - 1, {"from": self.alice}
         )
 
     def rule_remove(self, st_pct):
         """
         Remove liquidity from the pool.
         """
-        amount = int(10 ** 18 * st_pct)
+        amount = int(10**18 * st_pct)
         self.swap.remove_liquidity(amount, [0] * 2, {"from": self.alice})
 
     def rule_exchange(self, st_idx, st_pct):
@@ -111,15 +110,14 @@ class StateMachine:
         assert receiver_balance + profit == self.swap.balanceOf(self.receiver)
 
     def _manual_update(self) -> bool:
-        if self.type != "template":
-            try:
-                self.peg_keeper.update({"from": self.alice})
-            except VirtualMachineError as e:
-                assert e.revert_msg in [
-                    "dev: peg was unprofitable",
-                    "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
-                ]
-                return False
+        try:
+            self.peg_keeper.update({"from": self.alice})
+        except VirtualMachineError:
+            # assert e.revert_msg in [
+            #     "dev: peg was unprofitable",
+            #     "dev: zero tokens burned",  # StableSwap assertion when add/remove zero coins
+            # ]
+            return False
         return True
 
     def invariant_withdraw_profit(self):
@@ -130,14 +128,26 @@ class StateMachine:
         self.rule_withdraw_profit()
 
         debt = self.peg_keeper.debt()
-        amount = 5 * (debt + 1) + self.swap.balances(1) - self.swap.balances(0)
+        if self.is_meta:
+            amount = (
+                5 * (debt + 1)
+                + self.swap.balances(1) * 11 // 10
+                - self.swap.balances(0)
+            )
+        else:
+            amount = 5 * (debt + 1) + self.swap.balances(1) - self.swap.balances(0)
         self.pegged._mint_for_testing(self.alice, amount, {"from": self.alice})
         self.swap.add_liquidity([amount, 0], 0, {"from": self.alice})
 
         chain.sleep(15 * 60)
         if self._manual_update():
             assert self.peg_keeper.debt() == 0
-            assert self.swap.balances(1) == self.swap.balances(0) - 4 * debt - 5
+            if self.is_meta:
+                assert self.swap.balances(1) * 11 // 10 == pytest.approx(
+                    self.swap.balances(0) - 4 * debt - 5, abs=10
+                )
+            else:
+                assert self.swap.balances(1) == self.swap.balances(0) - 4 * debt - 5
 
         # withdraw_profit, mint, add_liquidity
         chain.undo(2 if self.always_withdraw else 3)
@@ -159,15 +169,13 @@ def test_withdraw_profit(
     decimals,
     set_fees,
     peg_keeper,
-    peg_keeper_type,
     admin,
     receiver,
     alice,
     always_withdraw,
+    peg_keeper_name,
 ):
-    set_fees(4 * 10 ** 7, 0)
-    if peg_keeper_type == "template":
-        peg_keeper.set_new_min_asymmetry(2, {"from": admin})
+    set_fees(4 * 10**7)
 
     state_machine(
         StateMachine,
@@ -178,6 +186,6 @@ def test_withdraw_profit(
         decimals,
         receiver,
         always_withdraw,
-        peg_keeper_type,
+        peg_keeper_name,
         settings={"max_examples": 10, "stateful_step_count": 10},
     )

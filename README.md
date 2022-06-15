@@ -26,12 +26,10 @@ For other parameters see [tests](tests).
 
 ### Glossary
 `Peg` – coin we peg to  
-`Pegger` – coin we are pegging and able to mint/burn  
-`PegKeeper` – contract that maintains the peg  
-[`template`](contracts/template) – version of peg keeper with the swap  
-[`pluggable`](contracts/pluggable) –version of peg keeper with already deployed swap
+`Pegged` – coin we are pegging and able to mint/burn  
+`PegKeeper` – contract that maintains the peg
 
 
 ### License
 
-(c) Curve.Fi, 2020 - [All rights reserved](LICENSE).
+(c) Curve.Fi, 2022 - [All rights reserved](LICENSE).

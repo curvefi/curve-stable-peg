@@ -1,5 +1,5 @@
 import pytest
-from brownie import ZERO_ADDRESS, chain
+from brownie import chain
 
 # ------------------------------ Coins functions -------------------------------
 
@@ -10,8 +10,24 @@ def base_amount():
 
 
 @pytest.fixture(scope="module")
-def initial_amounts(coins, base_amount):
-    return [base_amount * 10 ** coin.decimals() for coin in coins]
+def initial_amounts(coins, base_amount, peg_keeper_name):
+    amounts = [base_amount * 10 ** coin.decimals() for coin in coins]
+    if "meta" in peg_keeper_name:
+        amounts[0] = amounts[0] * 11 // 10
+    return amounts
+
+
+@pytest.fixture(scope="module")
+def equal_balances(swap, peg_keeper_name):
+    def basic():
+        assert swap.balances(0) == swap.balances(1)
+
+    def meta():
+        assert int(swap.balances(0)) == pytest.approx(
+            swap.balances(1) * 11 // 10, abs=10
+        )
+
+    return meta if "meta" in peg_keeper_name else basic
 
 
 @pytest.fixture(scope="module")
@@ -65,19 +81,25 @@ def get_admin_balances(swap, n_coins):
 
 
 @pytest.fixture(scope="module")
-def set_fees(chain, swap, alice):
-    def _set_fee_fixture_fn(fee, admin_fee):
-        swap.commit_new_fee(fee, admin_fee, {"from": alice})
-        chain.sleep(86400 * 3)
-        swap.apply_new_fee({"from": alice})
+def set_fees(swap, alice):
+    def _set_fee_fixture_fn(fee):
+        swap.set_new_fee(fee, {"from": alice})
 
     yield _set_fee_fixture_fn
 
 
 @pytest.fixture(scope="module")
-def imbalance_pool(swap, coins, initial_amounts, alice):
-    def _inner(i, amount=None):
+def imbalance_pool(swap, coins, initial_amounts, alice, peg_keeper_name):
+    def _inner(i, amount=None, add_diff=False):
         amounts = [0, 0]
+        if add_diff:
+            if "meta" in peg_keeper_name and amount:
+                if i == 0:
+                    amount += swap.balances(1 - i) - swap.balances(i) * 10 // 11
+                else:
+                    amount += swap.balances(1 - i) * 11 // 10 - swap.balances(i)
+            else:
+                amount += swap.balances(1 - i) - swap.balances(i)
         amounts[i] = amount or initial_amounts[i] // 3
         coins[i]._mint_for_testing(alice, amounts[i], {"from": alice})
         coins[i].approve(swap, amounts[i], {"from": alice})
@@ -96,11 +118,12 @@ def provide_token_to_peg_keeper(
     alice,
     peg_keeper_updater,
     peg_keeper,
-    set_peg_keeper_func,
     initial_amounts,
+    equal_balances,
+    peg_keeper_name,
 ):
     """Add 5x of peg, so Peg Keeper mints x, then remove 4x, so pool is balanced."""
-    assert swap.balances(0) == swap.balances(1)
+    equal_balances()
     amount = initial_amounts[1] * 5
     peg._mint_for_testing(alice, amount)
     peg.approve(swap, amount, {"from": alice})
@@ -111,36 +134,55 @@ def provide_token_to_peg_keeper(
         {"from": alice},
     )
 
-    set_peg_keeper_func()
     peg_keeper.update({"from": peg_keeper_updater})
-    set_peg_keeper_func(ZERO_ADDRESS)
 
-    remove_amount = swap.balances(1) - swap.balances(0)
+    if "meta" in peg_keeper_name:
+        remove_amount = swap.balances(1) - swap.balances(0) * 10 // 11
+    else:
+        remove_amount = swap.balances(1) - swap.balances(0)
     swap.remove_liquidity_imbalance(
         [0, remove_amount],
-        2 ** 256 - 1,
+        2**256 - 1,
         {"from": alice},
     )
 
-    assert swap.balances(0) == swap.balances(1)
+    equal_balances()
     chain.sleep(15 * 60)
 
 
 @pytest.fixture(scope="module")
-def balance_change_after_provide(swap, coins):
+def balance_change_after_provide(swap, coins, peg_keeper_name):
     def _inner(diff: int):
         # diff should be positive
-        assert swap.balances(0) + (diff - diff // 5) == swap.balances(1)
-        assert coins[0].balanceOf(swap) + (diff - diff // 5) == coins[1].balanceOf(swap)
+        if "meta" in peg_keeper_name:
+            assert swap.balances(0) + (diff - diff // 5) == swap.balances(1) * 11 // 10
+            assert (
+                coins[0].balanceOf(swap) + (diff - diff // 5)
+                == coins[1].balanceOf(swap) * 11 // 10
+            )
+        else:
+            assert swap.balances(0) + (diff - diff // 5) == swap.balances(1)
+            assert coins[0].balanceOf(swap) + (diff - diff // 5) == coins[1].balanceOf(
+                swap
+            )
 
     return _inner
 
 
 @pytest.fixture(scope="module")
-def balance_change_after_withdraw(swap, coins):
+def balance_change_after_withdraw(swap, coins, peg_keeper_name):
     def _inner(diff: int):
         # diff should be positive
-        assert swap.balances(0) - (diff - diff // 5) == swap.balances(1)
-        assert coins[0].balanceOf(swap) - (diff - diff // 5) == coins[1].balanceOf(swap)
+        if "meta" in peg_keeper_name:
+            assert swap.balances(0) - (diff - diff // 5) == swap.balances(1) * 11 // 10
+            assert (
+                coins[0].balanceOf(swap) - (diff - diff // 5)
+                == coins[1].balanceOf(swap) * 11 // 10
+            )
+        else:
+            assert swap.balances(0) - (diff - diff // 5) == swap.balances(1)
+            assert coins[0].balanceOf(swap) - (diff - diff // 5) == coins[1].balanceOf(
+                swap
+            )
 
     return _inner

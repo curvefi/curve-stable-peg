@@ -1,6 +1,5 @@
 import brownie
 import pytest
-from brownie import ZERO_ADDRESS
 from brownie.test import given, strategy
 
 pytestmark = pytest.mark.usefixtures(
@@ -11,7 +10,7 @@ pytestmark = pytest.mark.usefixtures(
 )
 
 
-@given(amount=strategy("uint256", min_value=10 ** 20, max_value=10 ** 24))
+@given(amount=strategy("uint256", min_value=10**20, max_value=10**24))
 def test_withdraw(
     swap,
     peg,
@@ -20,13 +19,11 @@ def test_withdraw(
     amount,
     peg_keeper,
     peg_keeper_updater,
-    set_peg_keeper_func,
 ):
     swap.add_liquidity([amount, 0], 0, {"from": alice})
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
 
-    set_peg_keeper_func()
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
 
     new_balances = [swap.balances(0), swap.balances(1)]
@@ -46,7 +43,6 @@ def test_withdraw_insufficient_debt(
     initial_amounts,
     peg_keeper,
     peg_keeper_updater,
-    set_peg_keeper_func,
 ):
     """Provide 1000x of pegged, so Peg Keeper can't withdraw the whole 1/5 part."""
     amount = 1000 * initial_amounts[0]
@@ -56,7 +52,6 @@ def test_withdraw_insufficient_debt(
     balances = [swap.balances(0), swap.balances(1)]
     real_balances = [pegged.balanceOf(swap), peg.balanceOf(swap)]
 
-    set_peg_keeper_func()
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
 
     new_balances = [swap.balances(0), swap.balances(1)]
@@ -76,7 +71,6 @@ def test_withdraw_dust_debt(
     initial_amounts,
     peg_keeper,
     peg_keeper_updater,
-    set_peg_keeper_func,
     balance_change_after_withdraw,
 ):
     amount = 5 * (initial_amounts[0] - 1)
@@ -84,19 +78,16 @@ def test_withdraw_dust_debt(
     pegged.approve(swap, 2 * amount, {"from": alice})
 
     # Peg Keeper withdraws almost all debt
-    set_peg_keeper_func()
     swap.add_liquidity([amount, 0], 0, {"from": alice})
     assert peg_keeper.update({"from": peg_keeper_updater}).return_value
     balance_change_after_withdraw(amount)
-    set_peg_keeper_func(ZERO_ADDRESS)
 
     remove_amount = swap.balances(0) - swap.balances(1)
-    swap.remove_liquidity_imbalance([remove_amount, 0], 2 ** 256 - 1, {"from": alice})
+    swap.remove_liquidity_imbalance([remove_amount, 0], 2**256 - 1, {"from": alice})
     assert swap.balances(0) == swap.balances(1)
 
     # Does not withdraw anything
     swap.add_liquidity([amount, 0], 0, {"from": alice})
-    set_peg_keeper_func()
     assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
 
 
@@ -104,19 +95,13 @@ def test_almost_balanced(
     swap,
     alice,
     peg_keeper,
-    peg_keeper_type,
     peg_keeper_updater,
-    set_peg_keeper_func,
     set_fees,
 ):
-    swap.add_liquidity([10 ** 18, 0], 0, {"from": alice})
-    set_peg_keeper_func()
-    if peg_keeper_type == "template":
-        assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
-    else:
-        set_fees(1 * 10 ** 6, 0)
-        with brownie.reverts("dev: peg was unprofitable"):
-            peg_keeper.update({"from": peg_keeper_updater})
+    swap.add_liquidity([10**18, 0], 0, {"from": alice})
+    set_fees(1 * 10**6)
+    with brownie.reverts():  # dev: peg was unprofitable
+        peg_keeper.update({"from": peg_keeper_updater})
 
 
 def test_event(swap, initial_amounts, alice, peg_keeper, peg_keeper_updater):
