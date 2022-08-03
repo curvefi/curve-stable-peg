@@ -1,6 +1,6 @@
 import brownie
 import pytest
-from brownie import ZERO_ADDRESS, chain
+from brownie import ZERO_ADDRESS, chain, web3
 from flaky import flaky
 
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
@@ -123,13 +123,14 @@ def test_revert_new_admin_without_commit(peg_keeper, admin):
 
 
 def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
-    peg_keeper.commit_new_receiver(alice, {"from": admin})
+    tx = peg_keeper.commit_new_receiver(alice, {"from": admin})
+    tx_time = web3.eth.get_block(tx.block_number).timestamp
 
     assert peg_keeper.receiver() == receiver
     assert peg_keeper.future_receiver() == alice
     assert (
         0
-        <= chain.time() + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
+        <= tx_time + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
         <= 1
     )
 

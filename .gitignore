@@ -4,3 +4,4 @@
 *.pyc
 .pypy
 .hypothesis
+/node_modules
