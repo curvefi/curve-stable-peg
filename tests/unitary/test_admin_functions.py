@@ -128,11 +128,7 @@ def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
 
     assert peg_keeper.receiver() == receiver
     assert peg_keeper.future_receiver() == alice
-    assert (
-        0
-        <= tx_time + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
-        <= 1
-    )
+    assert tx_time + ADMIN_ACTIONS_DEADLINE == peg_keeper.admin_actions_deadline()
 
 
 def test_commit_new_receiver_access(peg_keeper, alice):
