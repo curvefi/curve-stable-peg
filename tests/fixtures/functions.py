@@ -112,7 +112,7 @@ def imbalance_pool(swap, coins, initial_amounts, alice, peg_keeper_name):
 
 
 @pytest.fixture(scope="module")
-def provide_token_to_peg_keeper(
+def provide_token_to_peg_keeper_no_sleep(
     swap,
     peg,
     alice,
@@ -147,6 +147,10 @@ def provide_token_to_peg_keeper(
     )
 
     equal_balances()
+
+
+@pytest.fixture(scope="module")
+def provide_token_to_peg_keeper(provide_token_to_peg_keeper_no_sleep):
     chain.sleep(15 * 60)
 
 
