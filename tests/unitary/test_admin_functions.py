@@ -52,15 +52,12 @@ def test_set_new_caller_share_only_admin(peg_keeper, alice):
 
 
 def test_commit_new_admin(peg_keeper, admin, alice):
-    peg_keeper.commit_new_admin(alice, {"from": admin})
+    tx = peg_keeper.commit_new_admin(alice, {"from": admin})
+    tx_time = web3.eth.get_block(tx.block_number).timestamp
 
     assert peg_keeper.admin() == admin
     assert peg_keeper.future_admin() == alice
-    assert (
-        0
-        <= chain.time() + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
-        <= 1
-    )
+    assert tx_time + ADMIN_ACTIONS_DEADLINE == peg_keeper.admin_actions_deadline()
 
 
 def test_commit_new_admin_access(peg_keeper, alice):
@@ -89,7 +86,7 @@ def test_apply_new_admin_only_new_admin(peg_keeper, admin, alice, bob):
 @flaky
 def test_apply_new_admin_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_admin(alice, {"from": admin})
-    chain.sleep(ADMIN_ACTIONS_DEADLINE - 1)
+    chain.sleep(ADMIN_ACTIONS_DEADLINE - 60)
     with brownie.reverts():  # dev: insufficient time
         peg_keeper.apply_new_admin({"from": alice})
 
@@ -148,7 +145,7 @@ def test_apply_new_receiver(peg_keeper, admin, alice):
 @flaky
 def test_apply_new_receiver_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
-    chain.sleep(ADMIN_ACTIONS_DEADLINE - 1)
+    chain.sleep(ADMIN_ACTIONS_DEADLINE - 60)
     with brownie.reverts():  # dev: insufficient time
         peg_keeper.apply_new_receiver({"from": admin})
 
