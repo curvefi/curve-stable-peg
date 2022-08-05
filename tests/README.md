@@ -1,7 +1,6 @@
 ## Tests
 
-Add `--peg-keeper`, `--stable-swap` or/and `--stable-peg` to run only those test suites.  
-Also use:  
+to run only specific test suites use:  
 `--type` to run only certain type of peg keepers  
 `--contracts` to run only certain contracts of peg keepers  
 `--unitary` to run only unitary tests  
@@ -10,6 +9,6 @@ Also use:
 
 For example:
 ```shell
-brownie test --stable-peg --unitary --type pluggable-optimized
+brownie test --unitary --type pluggable-optimized
 brownie test --network mainnet-fork --forked-tests --contracts mim
 ```
