@@ -22,10 +22,10 @@ _contracts = {
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--contracts",
+        "--contract",
         action="store",
-        default="",
-        help="comma-separated list of peg keeper name to test against",
+        default=list(_contracts.keys())[0],
+        help="peg keeper name to test against",
     )
     parser.addoption("--unitary", action="store_true", help="only run unit tests")
     parser.addoption(
@@ -72,15 +72,12 @@ def pytest_ignore_collect(path, config):
 
 
 def pytest_generate_tests(metafunc):
-    cli_options = metafunc.config.getoption("contracts").split(",")
-    if cli_options[0] == "":
-        cli_options = _contracts.keys()
+    cli_option = metafunc.config.getoption("contract")
     metafunc.parametrize(
         "peg_keeper_name",
-        cli_options,
+        [cli_option],
         indirect=True,
-        ids=[f"(PegKeeper={i})" for i in cli_options],
-        scope="session",
+        ids=[f"(PegKeeper={cli_option})"],
     )
 
 

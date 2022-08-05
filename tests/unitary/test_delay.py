@@ -48,5 +48,5 @@ def test_update_no_delay(
     else:
         _prepare_for_withdraw(swap, pegged, bob)
 
-    chain.mine(timestamp=peg_keeper.last_change() + ACTION_DELAY - 1)
+    chain.mine(timestamp=peg_keeper.last_change() + ACTION_DELAY - 30)
     assert not peg_keeper.update({"from": peg_keeper_updater}).return_value
