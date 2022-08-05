@@ -1,7 +1,6 @@
 import brownie
 import pytest
 from brownie import ZERO_ADDRESS, chain, web3
-from flaky import flaky
 
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
@@ -83,7 +82,6 @@ def test_apply_new_admin_only_new_admin(peg_keeper, admin, alice, bob):
         peg_keeper.apply_new_admin({"from": bob})
 
 
-@flaky
 def test_apply_new_admin_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_admin(alice, {"from": admin})
     chain.sleep(ADMIN_ACTIONS_DEADLINE - 60)
@@ -142,7 +140,6 @@ def test_apply_new_receiver(peg_keeper, admin, alice):
     assert peg_keeper.future_receiver() == alice
 
 
-@flaky
 def test_apply_new_receiver_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
     chain.sleep(ADMIN_ACTIONS_DEADLINE - 60)
