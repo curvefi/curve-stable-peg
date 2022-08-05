@@ -5,3 +5,5 @@
 .pypy
 .hypothesis
 /node_modules
+/package.json
+/package-lock.json
