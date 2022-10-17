@@ -1,6 +1,5 @@
 import pytest
 from brownie import chain
-from flaky import flaky
 
 pytestmark = pytest.mark.usefixtures(
     "add_initial_liquidity",
@@ -40,12 +39,11 @@ def test_update_delay(peg_keeper, swap, peg, pegged, bob, method):
 
 
 @pytest.mark.parametrize("method", ["provide", "withdraw"])
-@flaky(max_runs=3)
 def test_update_no_delay(peg_keeper, swap, peg, pegged, bob, method):
     if method == "provide":
         _prepare_for_provide(swap, peg, bob)
     else:
         _prepare_for_withdraw(swap, pegged, bob)
 
-    chain.mine(timestamp=peg_keeper.last_change() + ACTION_DELAY - 1)
+    chain.mine(timestamp=peg_keeper.last_change() + ACTION_DELAY - 30)
     assert not peg_keeper.update({"from": swap}).return_value

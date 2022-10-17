@@ -1,7 +1,6 @@
 import brownie
 import pytest
-from brownie import ZERO_ADDRESS, chain
-from flaky import flaky
+from brownie import ZERO_ADDRESS, chain, web3
 
 ADMIN_ACTIONS_DEADLINE = 3 * 86400
 
@@ -48,15 +47,12 @@ def test_set_new_min_asymmetry_access(peg_keeper, alice):
 
 
 def test_commit_new_admin(peg_keeper, admin, alice):
-    peg_keeper.commit_new_admin(alice, {"from": admin})
+    tx = peg_keeper.commit_new_admin(alice, {"from": admin})
+    tx_time = web3.eth.get_block(tx.block_number).timestamp
 
     assert peg_keeper.admin() == admin
     assert peg_keeper.future_admin() == alice
-    assert (
-        0
-        <= chain.time() + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
-        <= 1
-    )
+    assert tx_time + ADMIN_ACTIONS_DEADLINE == peg_keeper.admin_actions_deadline()
 
 
 def test_commit_new_admin_access(peg_keeper, alice):
@@ -73,10 +69,9 @@ def test_apply_new_admin(peg_keeper, admin, alice):
     assert peg_keeper.future_admin() == alice
 
 
-@flaky
 def test_apply_new_admin_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_admin(alice, {"from": admin})
-    chain.sleep(ADMIN_ACTIONS_DEADLINE - 1)
+    chain.sleep(ADMIN_ACTIONS_DEADLINE - 60)
     with brownie.reverts("dev: insufficient time"):
         peg_keeper.apply_new_admin({"from": alice})
 
@@ -106,15 +101,12 @@ def test_revert_new_admin_without_commit(peg_keeper, admin):
 
 
 def test_commit_new_receiver(peg_keeper, admin, alice, receiver):
-    peg_keeper.commit_new_receiver(alice, {"from": admin})
+    tx = peg_keeper.commit_new_receiver(alice, {"from": admin})
+    tx_time = web3.eth.get_block(tx.block_number).timestamp
 
     assert peg_keeper.receiver() == receiver
     assert peg_keeper.future_receiver() == alice
-    assert (
-        0
-        <= chain.time() + ADMIN_ACTIONS_DEADLINE - peg_keeper.admin_actions_deadline()
-        <= 1
-    )
+    assert tx_time + ADMIN_ACTIONS_DEADLINE == peg_keeper.admin_actions_deadline()
 
 
 def test_commit_new_receiver_access(peg_keeper, alice):
@@ -131,10 +123,9 @@ def test_apply_new_receiver(peg_keeper, admin, alice):
     assert peg_keeper.future_receiver() == alice
 
 
-@flaky
 def test_apply_new_receiver_deadline(peg_keeper, admin, alice):
     peg_keeper.commit_new_receiver(alice, {"from": admin})
-    chain.sleep(ADMIN_ACTIONS_DEADLINE - 1)
+    chain.sleep(ADMIN_ACTIONS_DEADLINE - 60)
     with brownie.reverts("dev: insufficient time"):
         peg_keeper.apply_new_receiver({"from": admin})
 
