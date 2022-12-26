@@ -94,7 +94,7 @@ def test_exceed_max_burn(
     amounts = [i // divisor for i in initial_amounts]
     max_burn = (n_coins * 10 ** 18 * base_amount) // divisor
 
-    with brownie.reverts("Slippage screwed you"):
+    with brownie.reverts():
         swap.remove_liquidity_imbalance(amounts, max_burn - 1, {"from": alice})
 
 

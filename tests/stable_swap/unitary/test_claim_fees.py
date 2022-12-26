@@ -75,8 +75,3 @@ def test_withdraw_all_coins(
             assert balance == alice.balance()
         else:
             assert coin.balanceOf(alice) == balance
-
-
-def test_withdraw_only_owner(bob, swap):
-    with brownie.reverts():
-        swap.withdraw_admin_fees({"from": bob})

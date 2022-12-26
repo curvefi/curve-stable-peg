@@ -89,7 +89,6 @@ def test_ramp_A_only_owner(chain, bob, swap):
         swap.ramp_A(0, chain.time() + 1000000, {"from": bob})
 
 
-@flaky
 def test_ramp_A_insufficient_time(chain, alice, swap):
     with brownie.reverts():
         swap.ramp_A(0, chain.time() + MIN_RAMP_TIME - 1, {"from": alice})

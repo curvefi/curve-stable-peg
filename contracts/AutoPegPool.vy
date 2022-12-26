@@ -89,7 +89,7 @@ PERMIT_TYPEHASH: constant(bytes32) = keccak256("Permit(address owner,address spe
 
 # keccak256("isValidSignature(bytes32,bytes)")[:4] << 224
 ERC1271_MAGIC_VAL: constant(bytes32) = 0x1626ba7e00000000000000000000000000000000000000000000000000000000
-VERSION: constant(String[8]) = "v6.0.0"
+VERSION: constant(String[8]) = "v6.0.0"  # TODO
 
 EXP_PRECISION: constant(uint256) = 10**10
 
@@ -121,20 +121,32 @@ ma_price: uint256
 ma_half_time: public(uint256)
 ma_last_time: public(uint256)
 
+# Peg Keeper
+
+PEGGED_I: constant(uint256) = 1  # Index of the pegged coin
+ACTION_DELAY: constant(uint256) = 15 * 60
+ADMIN_ACTIONS_DELAY: constant(uint256) = 3 * 86400
+
+debt: public(uint256)
+last_change: public(uint256)
+available_debt: public(uint256)
+
+PROFIT_THRESHOLD: constant(uint256) = 10 ** 8
+ASYMMETRY_PRECISION: constant(uint256) = 10 ** 10
+min_asymmetry: public(uint256)
+
+
+# TODO: remove?
+new_fee: uint256
+new_admin_fee: uint256
+
 
 @external
-def __init__():
-    # we do this to prevent the implementation contract from being used as a pool
-    self.factory = 0x0000000000000000000000000000000000000001
-    assert N_COINS == 2
-
-
-@external
-def initialize(
+def __init__(
     _name: String[32],
     _symbol: String[10],
-    _coins: address[4],
-    _rate_multipliers: uint256[4],
+    _coins: address[N_COINS],
+    _rate_multipliers: uint256[N_COINS],
     _A: uint256,
     _fee: uint256,
 ):
@@ -147,9 +159,6 @@ def initialize(
     @param _A Amplification coefficient multiplied by n ** (n - 1)
     @param _fee Fee to charge for exchanges
     """
-    # check if factory was already set to prevent initializing contract twice
-    assert self.factory == empty(address)
-
     for i in range(N_COINS):
         coin: address = _coins[i]
         if coin == empty(address):
@@ -481,6 +490,17 @@ def save_p(xp: uint256[N_COINS], amp: uint256, D: uint256):
 
 
 @view
+@internal
+def _virtual_price() -> uint256:
+    amp: uint256 = self._A()
+    xp: uint256[N_COINS] = self._xp_mem(self.rate_multipliers, self.balances)
+    D: uint256 = self.get_D(xp, amp)
+    # D is in the units similar to DAI (e.g. converted to precision 1e18)
+    # When balanced, D = n * x_u - total virtual value of the portfolio
+    return D * PRECISION / self.totalSupply
+
+
+@view
 @external
 def get_virtual_price() -> uint256:
     """
@@ -488,12 +508,7 @@ def get_virtual_price() -> uint256:
     @dev Useful for calculating profits
     @return LP token virtual price normalized to 1e18
     """
-    amp: uint256 = self._A()
-    xp: uint256[N_COINS] = self._xp_mem(self.rate_multipliers, self.balances)
-    D: uint256 = self.get_D(xp, amp)
-    # D is in the units similar to DAI (e.g. converted to precision 1e18)
-    # When balanced, D = n * x_u - total virtual value of the portfolio
-    return D * PRECISION / self.totalSupply
+    return self._virtual_price()
 
 
 @view
@@ -524,6 +539,70 @@ def calc_token_amount(_amounts: uint256[N_COINS], _is_deposit: bool) -> uint256:
     else:
         diff = D0 - D1
     return diff * self.totalSupply / D0
+
+
+# TODO location in file
+### Peg Keeper Functionality ###
+
+@internal
+def _is_balanced(_balances: uint256[N_COINS]) -> bool:
+    # In case pool is fully emptied
+    if _balances[0] + _balances[1] == 0:
+        return True
+    return ASYMMETRY_PRECISION - 4 * ASYMMETRY_PRECISION * _balances[0] * _balances[1] /\
+        (_balances[0] + _balances[1]) ** 2 < self.min_asymmetry
+
+
+@internal
+def _peg(_rates: uint256[N_COINS], _amp: uint256):
+    balances: uint256[N_COINS] = self.balances
+    if self.last_change + ACTION_DELAY > block.timestamp or self._is_balanced(balances):
+        return
+    total_supply: uint256 = self.totalSupply
+    D0: uint256 = self.get_D_mem(_rates, balances, _amp)
+
+    debt: uint256 = self.debt
+    available_debt: uint256 = self.available_debt
+    new_balances: uint256[N_COINS] = balances
+    if balances[PEGGED_I] < balances[1 - PEGGED_I]:  # provide
+        amount: uint256 = min((balances[1 - PEGGED_I] - balances[PEGGED_I]) / 5, available_debt)
+        if amount == 0:
+            return
+
+        new_balances[PEGGED_I] += amount
+        self.debt = debt + amount
+        self.available_debt = available_debt - amount
+        # Invariant after change
+        D1: uint256 = self.get_D_mem(_rates, new_balances, _amp)
+
+        mint_amount: uint256 = total_supply * (D1 - D0) / D0
+        # Mint pool tokens
+        self.balanceOf[self] += mint_amount
+        self.totalSupply = total_supply + mint_amount
+        log Transfer(empty(address), self, mint_amount)
+
+    elif balances[PEGGED_I] > balances[1 - PEGGED_I]:  # withdraw
+        amount: uint256 = min((balances[PEGGED_I] - balances[1 - PEGGED_I]) / 5, debt)
+        if amount == 0:
+            return
+
+        new_balances[PEGGED_I] -= amount
+        self.debt = debt - amount
+        self.available_debt = available_debt + amount
+        # Invariant after change
+        D1: uint256 = self.get_D_mem(_rates, new_balances, _amp)
+
+        burn_amount: uint256 = ((D0 - D1) * total_supply / D0) + 1
+        # Burn pool tokens
+        self.balanceOf[self] -= burn_amount
+        self.totalSupply = total_supply - burn_amount
+        log Transfer(self, empty(address), burn_amount)
+
+    else:
+        return
+
+    self.balances = new_balances
+    self.last_change = block.timestamp
 
 
 @external
@@ -611,6 +690,7 @@ def add_liquidity(
 
     log AddLiquidity(msg.sender, _amounts, fees, D1, total_supply)
 
+    self._peg(rates, amp)
     return mint_amount
 
 
@@ -774,6 +854,7 @@ def exchange(
 
     log TokenExchange(msg.sender, i, _dx, j, dy)
 
+    self._peg(rates, amp)
     return dy
 
 
@@ -821,6 +902,7 @@ def remove_liquidity(
 
     log RemoveLiquidity(msg.sender, amounts, empty(uint256[N_COINS]), total_supply)
 
+    self._peg(self.rate_multipliers, self._A())
     return amounts
 
 
@@ -890,6 +972,7 @@ def remove_liquidity_imbalance(
     log Transfer(msg.sender, empty(address), burn_amount)
     log RemoveLiquidityImbalance(msg.sender, _amounts, fees, D1, total_supply)
 
+    self._peg(rates, amp)
     return burn_amount
 
 
@@ -1034,12 +1117,13 @@ def remove_liquidity_one_coin(
     self.ma_price = dy[2]
     self.ma_last_time = block.timestamp
 
+    self._peg(self.rate_multipliers, self._A())
     return dy[0]
 
 
 @external
 def ramp_A(_future_A: uint256, _future_time: uint256):
-    assert msg.sender == Factory(self.factory).admin()  # dev: only owner
+    assert msg.sender == self.factory  # dev: only owner TODO
     assert block.timestamp >= self.initial_A_time + MIN_RAMP_TIME
     assert _future_time >= block.timestamp + MIN_RAMP_TIME  # dev: insufficient time
 
@@ -1062,7 +1146,7 @@ def ramp_A(_future_A: uint256, _future_time: uint256):
 
 @external
 def stop_ramp_A():
-    assert msg.sender == Factory(self.factory).admin()  # dev: only owner
+    assert msg.sender == self.factory  # dev: only owner TODO
 
     current_A: uint256 = self._A()
     self.initial_A = current_A
@@ -1074,19 +1158,44 @@ def stop_ramp_A():
     log StopRampA(current_A, block.timestamp)
 
 
+@nonpayable
+@external
+def provide_pegged(_amount: uint256):
+    ERC20(self.coins[PEGGED_I]).transferFrom(msg.sender, self, _amount)
+    self.available_debt += _amount
+
+
 @view
 @external
 def admin_balances(i: uint256) -> uint256:
+    if i == PEGGED_I:
+        return ERC20(self.coins[i]).balanceOf(self) - self.balances[i] - self.available_debt
     return ERC20(self.coins[i]).balanceOf(self) - self.balances[i]
 
 
 @external
-def withdraw_admin_fees():
-    receiver: address = Factory(self.factory).get_fee_receiver(self)
+def withdraw_admin_fees(_peg_keeper_profit: bool=True):
+    receiver: address = self.factory  # TODO
+
+    if _peg_keeper_profit:
+        lp_balance: uint256 = self.balanceOf[self]
+
+        virtual_price: uint256 = self._virtual_price()
+        lp_debt: uint256 = self.debt * PRECISION / virtual_price
+
+        if lp_balance > lp_debt + PROFIT_THRESHOLD:
+            lp_profit: uint256 = lp_balance - lp_debt - PROFIT_THRESHOLD
+            total_supply: uint256 = self.totalSupply
+            # TODO: currently give all profit to the pool
+            self.balanceOf[self] = lp_balance - lp_profit
+            self.totalSupply = total_supply - lp_profit
+            log Transfer(self, empty(address), lp_profit)
 
     for i in range(N_COINS):
         coin: address = self.coins[i]
         fees: uint256 = ERC20(coin).balanceOf(self) - self.balances[i]
+        if i == PEGGED_I:
+            fees -= self.available_debt
         raw_call(
             coin,
             concat(
@@ -1097,6 +1206,20 @@ def withdraw_admin_fees():
         )
 
 
+@external
+def commit_new_fee(_new_fee: uint256, _new_admin_fee: uint256):
+    assert msg.sender == self.factory
+    self.new_fee = _new_fee
+    # self.new_admin_fee = _new_admin_fee
+
+
+@external
+def apply_new_fee():
+    assert msg.sender == self.factory
+    self.fee = self.new_fee
+    # self.admin_fee = self.new_admin_fee
+
+
 @pure
 @external
 def version() -> String[8]:
@@ -1104,4 +1227,3 @@ def version() -> String[8]:
     @notice Get the version of this token contract
     """
     return VERSION
-
